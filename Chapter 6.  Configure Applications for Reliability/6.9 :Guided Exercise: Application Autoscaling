@@ -1,0 +1,80 @@
+Guided Exercise: Application Autoscaling
+Objective
+•	Deploy an application.
+•	Manually scale the deployment up and down.
+•	Set CPU resource requests and limits.
+•	Configure a Horizontal Pod Autoscaler (HPA) to automatically scale the deployment under load.
+•	Observe autoscaling behavior during simulated CPU load.
+________________________________________
+2. Lab Setup
+lab start reliability-autoscaling
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+oc project reliability-autoscaling
+•	This ensures the cluster is ready and the reliability-autoscaling project exists.
+________________________________________
+3. Deploy the Application
+oc apply -f ~/DO180/labs/reliability-autoscaling/loadtest.yml
+watch oc get pods
+•	Deployment uses the loadtest:v1.0 image.
+•	Pod exposes a CPU-intensive endpoint at /api/loadtest/v1/cpu/1.
+•	Pod initially does not define CPU resource requests, which prevents HPA from working.
+________________________________________
+4. Attempt HPA Before Requests
+oc autoscale deployment/loadtest --min 2 --max 20 --cpu-percent 50
+oc get hpa loadtest
+oc describe hpa loadtest
+•	TARGETS shows <unknown> because CPU requests are missing.
+•	Event shows: failed to get cpu utilization: missing request for cpu.
+•	Solution: define CPU requests/limits in the deployment YAML.
+________________________________________
+5. Add CPU Requests & Limits
+Edit loadtest.yml:
+resources:
+  requests:
+    cpu: 25m   # pod needs 25 millicores to operate
+  limits:
+    cpu: 100m  # max CPU the pod can consume
+Redeploy:
+oc apply -f ~/DO180/labs/reliability-autoscaling/loadtest.yml
+watch oc get pods
+________________________________________
+6. Manual Scaling
+•	Scale up to 5 pods:
+oc scale deployment/loadtest --replicas 5
+watch oc get pods
+•	Scale down to 1 pod:
+oc scale deployment/loadtest --replicas 1
+watch oc get pods
+________________________________________
+7. Create Horizontal Pod Autoscaler
+oc autoscale deployment/loadtest --min 2 --max 20 --cpu-percent 50
+watch oc get hpa loadtest
+•	Initially, HPA ensures minimum 2 replicas.
+•	After the deployment has CPU requests defined, TARGETS will show current CPU usage.
+________________________________________
+8. Simulate Load
+1.	Get application route:
+oc get route loadtest
+2.	Send CPU-intensive requests:
+curl loadtest-reliability-autoscaling.apps.ocp4.example.com/api/loadtest/v1/cpu/1
+•	Multiple requests may be needed to trigger autoscaler.
+•	HPA scales up pods according to CPU usage.
+•	HPA scales down more slowly, often taking several minutes after CPU load decreases.
+________________________________________
+9. Monitor Autoscaling
+•	Watch HPA status and pod metrics:
+watch oc get hpa loadtest
+watch oc get pods
+•	Observe replicas increase when CPU > target, decrease when CPU < target.
+________________________________________
+10. Lab Cleanup
+lab finish reliability-autoscaling
+________________________________________
+Key Notes
+•	Resource requests are mandatory for CPU-based HPA. Without them, HPA cannot calculate utilization.
+•	Limits prevent a pod from consuming too much CPU or memory.
+•	HPA is reactive; scaling up is faster than scaling down.
+•	Load testing helps verify HPA behavior.
+
+
+
