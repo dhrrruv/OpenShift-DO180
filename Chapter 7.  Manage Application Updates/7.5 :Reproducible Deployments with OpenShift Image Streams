@@ -1,0 +1,99 @@
+Reproducible Deployments with OpenShift Image Streams
+Objectives
+•	Ensure reproducible application deployments.
+•	Use image streams and short image names to decouple deployments from specific registries.
+•	Enable rollbacks and controlled updates of container images.
+________________________________________
+1. Image Streams Overview
+•	Image streams abstract container images in OpenShift:
+o	Provide stable, short names independent of registry or runtime.
+o	Enable CI/CD pipelines to promote images between environments.
+o	Ensure rollback to the last known-good image.
+o	Track image SHA IDs for immutable reference.
+•	Key distinction: floating vs non-floating tags
+o	Floating: a tag like latest may point to different images over time.
+o	Non-floating: image streams lock to specific SHA IDs, ensuring reproducibility.
+•	OpenShift extends Kubernetes:
+o	Deployment objects can reference image streams instead of direct registry images.
+o	Supports automatic rollbacks via image stream tag history.
+________________________________________
+2. Image Stream Tags (ISTags)
+•	Each image stream can have multiple tags.
+•	Each tag stores:
+o	Metadata about the container image (registry, name, SHA ID).
+o	History of previous images for rollback.
+•	Tags can pull from different registries or repositories.
+•	Example of inspecting PHP image stream tags:
+oc get istag -n openshift | grep php
+oc describe is php -n openshift
+•	Current SHA ID is marked with *.
+________________________________________
+3. Image Names, Tags, and SHA IDs
+•	Image name: registry/repository/image:tag
+•	SHA ID: unique, immutable identifier.
+•	Deployments referencing a simple name (e.g., php:8.0-ubi8) may pull different images if registry changes.
+•	Image streams store the SHA ID to freeze the image, enabling consistent deployments.
+________________________________________
+4. Use Cases
+1.	Environment promotion
+o	Dev → QA → Prod
+o	Example:
+myapp:latest-dev → myapp:qa-stable → myapp:prod-v1.2
+o	Ensures tested images are used across environments.
+2.	Registry flexibility
+o	Swap image source if vendor image has issues.
+o	Use Red Hat certified images for security and stability.
+________________________________________
+5. Creating and Managing Image Streams
+•	Create image stream
+oc create is keycloak
+•	Add tags
+oc import-image keycloak:25.0 --from=quay.io/keycloak/keycloak:25.0.2 --confirm
+oc tag quay.io/keycloak/keycloak:25.0.2 keycloak:25.0
+•	Update tag to new version
+oc tag quay.io/keycloak/keycloak:25.0.3 keycloak:25.0
+•	Scheduled updates
+oc tag quay.io/keycloak/keycloak:25.0.3 keycloak:25.0 --scheduled
+•	Pull-through from internal registry
+oc tag quay.io/keycloak/keycloak:25.0.3 keycloak:25.0 --reference-policy local
+________________________________________
+6. Using Image Streams in Deployments
+•	Enable local lookup policy
+oc set image-lookup keycloak
+oc describe is keycloak
+oc set image-lookup keycloak --enabled=false  # disable
+•	Create deployment referencing an image stream
+oc create deployment mykeycloak --image keycloak:25.0
+•	Works with other workload resources:
+o	Jobs:
+oc create job myjob --image keycloak:25.0 -- mycommand
+o	CronJobs:
+oc create cronjob mycron --image keycloak:25.0 --schedule "*/5 * * * *" -- mycommand
+o	Pods:
+oc run mypod --image keycloak:25.0
+________________________________________
+7. Image Stream YAML Structure
+•	Key sections:
+o	metadata.name → ImageStream name
+o	spec.tags → desired tags and sources
+o	status.dockerImageRepository → internal registry path
+o	status.tags.items.dockerImageReference → SHA IDs of imported images
+Example snippet:
+spec:
+  lookupPolicy:
+    local: false
+  tags:
+    - name: 7.4-ubi8
+      from:
+        kind: DockerImage
+        name: registry.ocp4.example.com:8443/ubi8/php-74:latest
+      importPolicy:
+        importMode: Legacy
+________________________________________
+8. Best Practices
+•	Use image streams for reproducibility instead of direct registry images.
+•	Enable local lookup policy for short names in deployments.
+•	Use scheduled imports for trusted images to auto-update with security fixes.
+•	Always reference SHA IDs for immutable deployments.
+•	Image streams enable CI/CD integration and environment promotion without changing deployment definitions.
+
