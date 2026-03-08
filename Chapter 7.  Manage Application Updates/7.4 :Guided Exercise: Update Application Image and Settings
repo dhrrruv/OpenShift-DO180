@@ -1,0 +1,67 @@
+Guided Exercise: Update Application Image and Settings
+Objectives
+•	Pause, update, and resume deployments.
+•	Roll back a failing deployment.
+•	Minimize service interruption for database and web applications.
+________________________________________
+Part 1: Updating the Database Deployment
+1. Log in and select project
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+oc project updates-rollout-db
+2. Inspect current deployment
+oc get deployment -o wide
+oc get pod
+oc get pod <pod-name> -o jsonpath='{.spec.containers[0].image}{"\n"}'
+•	Database uses rhel9/mysql-80:1-224.
+3. Connect to database
+oc rsh <pod-name> mysql --user=operator1 --password=test -e "SHOW DATABASES"
+•	Confirm you can access quotes database.
+4. Pause deployment
+oc rollout pause deployment/mydb
+5. Update environment variable (password)
+oc set env deployment/mydb MYSQL_PASSWORD=redhat123
+•	Confirm password not yet active (deployment paused).
+6. Update container image
+oc set image deployment/mydb mysql-80=registry.ocp4.example.com:8443/rhel9/mysql-80:1-228
+•	Verify old pod still uses 1-224.
+7. Resume deployment
+oc rollout resume deployment/mydb
+oc get pods
+oc get pod <new-pod-name> -o jsonpath='{.spec.containers[0].image}{"\n"}'
+•	Confirm new pod uses 1-228 image.
+•	Verify new password works:
+oc rsh <new-pod-name> mysql --user=operator1 --password=redhat123 -e "SHOW DATABASES"
+________________________________________
+Part 2: Rolling Update of Web Application
+1. Switch project
+oc project updates-rollout-web
+2. Inspect deployment and ReplicaSet
+oc get deployment -o wide
+oc get replicaset
+oc get replicaset <replicaset-name> -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+•	Current image: redhattraining/versioned-hello:v1.0.
+•	Confirm readiness probe exists (HTTP GET on port 8080).
+3. Start continuous requests to monitor updates
+/home/student/DO180/labs/updates-rollout/curl_loop.sh
+4. Update deployment image
+oc set image deployment/version versioned-hello=registry.ocp4.example.com:8443/redhattraining/versioned-hello:v1.1
+•	Rolling update occurs:
+o	Old pods (v1.0) and new pods (v1.1) respond simultaneously.
+o	After rollout, only v1.1 responds.
+5. Confirm rollout
+oc rollout status deployment/version
+oc get replicaset
+oc get replicaset <new-replicaset-name> -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+6. Rollback deployment
+oc rollout undo deployment/version
+•	Old pods (v1.0) scale up; new pods (v1.1) scale down.
+•	Confirm by checking ReplicaSets and curl_loop.sh.
+________________________________________
+Key Takeaways
+1.	Pausing deployments allows multiple changes before rollout.
+2.	RollingUpdate strategy minimizes downtime for replicated services.
+3.	Recreate strategy is used when simultaneous versions cannot run.
+4.	Readiness probes ensure traffic goes to ready pods.
+5.	Rollbacks are managed via ReplicaSets (oc rollout undo).
+6.	Environment variables and images can be updated separately and safely.
+
