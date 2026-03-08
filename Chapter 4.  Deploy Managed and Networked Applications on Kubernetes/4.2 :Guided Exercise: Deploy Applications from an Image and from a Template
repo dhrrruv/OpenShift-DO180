@@ -1,0 +1,308 @@
+Guided Exercise: Deploy Applications from an Image and from a Template
+Goal of the Exercise
+Learn two ways to deploy applications in OpenShift:
+1️⃣ From a Template
+2️⃣ From a Container Image
+Then compare the resources created by each method.
+________________________________________
+Step 1 — Prepare the Lab Environment
+Command:
+lab start deploy-newapp
+What it does
+This command:
+•	Starts the lab environment
+•	Connects to the OpenShift cluster
+•	Prepares required resources
+________________________________________
+Step 2 — Login to OpenShift
+Command:
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+Explanation
+Part	Meaning
+oc	OpenShift CLI
+login	authenticate
+-u developer	username
+-p developer	password
+URL	OpenShift API server
+After login:
+Login successful
+________________________________________
+Step 3 — Create a New Project
+Command:
+oc new-project deploy-newapp
+What is a Project?
+In OpenShift:
+Project = Kubernetes Namespace + access control
+It is used to:
+•	isolate applications
+•	organize resources
+•	control permissions
+After creation:
+Now using project "deploy-newapp"
+OpenShift automatically switches to that project.
+________________________________________
+Step 4 — Verify the Project is Empty
+Command:
+oc get pods
+Output:
+No resources found
+Meaning:
+There are no pods running yet.
+________________________________________
+Step 5 — Check Default Resources
+Command:
+oc get serviceaccounts,secrets
+Example output:
+serviceaccount/builder
+serviceaccount/default
+serviceaccount/deployer
+Service Accounts
+Used by pods to:
+•	access the cluster
+•	pull images
+•	deploy applications
+________________________________________
+Secrets
+Secrets store sensitive data like:
+•	registry credentials
+•	tokens
+•	passwords
+Example:
+secret/default-dockercfg
+Used to pull container images from registry.
+________________________________________
+Step 6 — Inspect the Template
+Command:
+oc describe template mysql-persistent -n openshift
+Explanation
+Part	Meaning
+describe	show detailed info
+template mysql-persistent	template name
+-n openshift	namespace where template exists
+________________________________________
+Resources Created by Template
+The template contains these resources:
+Secret
+Service
+PersistentVolumeClaim
+Deployment
+Meaning:
+When template runs it creates:
+Resource	Purpose
+Secret	store database credentials
+Service	network access
+PVC	persistent storage
+Deployment	manage pods
+________________________________________
+Step 7 — Deploy Database Using Template
+Command:
+oc new-app --name mysql \
+--template mysql-persistent \
+-l team=red \
+-p MYSQL_USER=developer \
+-p MYSQL_PASSWORD=developer
+________________________________________
+Explanation of Command
+Option	Meaning
+new-app	create application
+--name mysql	app name
+--template mysql-persistent	template used
+-l team=red	attach label
+-p	template parameter
+Parameters used:
+MYSQL_USER=developer
+MYSQL_PASSWORD=developer
+________________________________________
+Resources Created
+Output:
+secret "mysql" created
+service "mysql" created
+persistentvolumeclaim "mysql" created
+deployment.apps "mysql" created
+So template created 4 resources automatically.
+________________________________________
+Step 8 — Watch Pod Creation
+Command:
+watch oc get pods
+What watch does
+Runs command repeatedly every few seconds.
+Example output:
+mysql-8d7d996f-qn798   Running
+Meaning:
+Deployment created a pod.
+Stop with:
+Ctrl + C
+________________________________________
+Step 9 — Deploy Database Using Container Image
+Now create another database using only an image.
+Command:
+oc new-app --name db-image -l team=blue \
+--image registry.ocp4.example.com:8443/rhel9/mysql-80:1 \
+-e MYSQL_USER=developer \
+-e MYSQL_PASSWORD=developer \
+-e MYSQL_ROOT_PASSWORD=redhat
+________________________________________
+Command Explanation
+Option	Meaning
+--name db-image	application name
+-l team=blue	attach label
+--image	container image
+-e	environment variable
+Environment variables configure MySQL:
+MYSQL_USER
+MYSQL_PASSWORD
+MYSQL_ROOT_PASSWORD
+________________________________________
+Resources Created
+Output:
+imagestream "db-image"
+deployment "db-image"
+service "db-image"
+So image deployment creates:
+Resource	Purpose
+ImageStream	track container images
+Deployment	manage pods
+Service	networking
+Notice:
+❌ No Secret
+❌ No PVC
+________________________________________
+Step 10 — Watch Both Pods
+Command:
+watch oc get pods -L team
+Example output:
+NAME                STATUS   TEAM
+db-image-xxxxx      Running  blue
+mysql-xxxxx         Running
+Observation:
+Only db-image pod has label.
+Why?
+Because template did not include label in pod template.
+________________________________________
+Step 11 — Check Readiness Probe
+Template pod:
+oc get pods -l deployment=mysql \
+-o jsonpath='{.items[0].spec.containers[0].readinessProbe}' | jq
+Output:
+mysqladmin ping
+What is Readiness Probe?
+A readiness probe checks:
+Is container ready to accept traffic?
+Example check:
+mysqladmin ping
+________________________________________
+Image-based pod
+Command:
+oc get pods -l deployment=db-image \
+-o jsonpath='{.items[0].spec.containers[0].readinessProbe}'
+Output:
+(empty)
+Meaning:
+❌ No readiness probe.
+________________________________________
+Step 12 — Check Resource Limits
+Template pod:
+oc get pods -l deployment=mysql \
+-o jsonpath='{.items[0].spec.containers[0].resources.limits}'
+Output:
+memory: 512Mi
+Meaning:
+Memory limit = 512 MB
+________________________________________
+Image-based pod:
+{}
+Meaning:
+❌ No resource limits.
+________________________________________
+Step 13 — Check Secrets
+Command:
+oc get secrets
+Output:
+mysql   Opaque
+Meaning:
+Template created secret for database credentials.
+Image-based deployment did not create secret.
+________________________________________
+Step 14 — View Services
+Command:
+oc get services
+Output:
+db-image
+mysql
+Both applications have services.
+________________________________________
+Step 15 — Filter Resources with Labels
+Command:
+oc get services -l team=red
+Output:
+mysql
+Meaning:
+Shows only resources with label:
+team=red
+________________________________________
+Step 16 — Delete Template Resources
+Command:
+oc delete all -l team=red
+Deletes:
+•	service
+•	deployment
+•	pods
+But does not delete:
+•	secrets
+•	PVC
+________________________________________
+Step 17 — Delete Remaining Resources
+Command:
+oc delete secret,pvc -l team=red
+Deletes:
+•	secret
+•	persistent volume claim
+________________________________________
+Step 18 — Verify Deletion
+Command:
+oc get secret,svc,pvc,deployment -l team=red
+Output:
+No resources found
+Template resources deleted.
+________________________________________
+Step 19 — Verify Image Deployment Still Exists
+Command:
+oc get is,deployment,svc
+Output:
+imagestream/db-image
+deployment/db-image
+service/db-image
+Image-based application still running.
+________________________________________
+Final Comparison
+Feature	Template Deployment	Image Deployment
+Secret	✅ Yes	❌ No
+Service	✅ Yes	✅ Yes
+Deployment	✅ Yes	✅ Yes
+PVC	✅ Yes	❌ No
+ImageStream	❌ No	✅ Yes
+Readiness Probe	✅ Yes	❌ No
+Resource Limits	✅ Yes	❌ No
+________________________________________
+Key Concept
+Template Deployment
+More production-ready because it includes:
+•	secrets
+•	storage
+•	probes
+•	limits
+________________________________________
+Image Deployment
+More basic deployment.
+Creates only:
+•	imagestream
+•	deployment
+•	service
+________________________________________
+Lab Finish
+Command:
+lab finish deploy-newapp
+This:
+•	cleans resources
+•	resets environment
+
