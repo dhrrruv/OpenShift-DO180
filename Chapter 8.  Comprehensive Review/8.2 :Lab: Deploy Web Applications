@@ -1,0 +1,60 @@
+Lab: Deploy Web Applications
+Objective
+Deploy a reproducible web application (Famous Authors) with a MySQL backend and HTML frontend, using image streams, secrets, persistent volumes, services, and routes.
+________________________________________
+Project Setup
+•	Project name: review
+•	UI image: registry.ocp4.example.com:8443/redhattraining/famous-quotes:2-42
+•	Database image stream: mysql8:1 → points to registry.ocp4.example.com:8443/rhel9/mysql-80:1-228
+•	Secret for database: dbparams
+user=operator1
+password=redhat123
+database=quotesdb
+________________________________________
+Step 1: Image Streams
+•	Create image stream for MySQL:
+oc create istag mysql8:1 --from-image registry.ocp4.example.com:8443/rhel9/mysql-80:1-228
+oc set image-lookup mysql8
+•	UI deployment can reference the image directly or via its own image stream.
+________________________________________
+Step 2: Secrets
+•	Create secret for database credentials:
+oc create secret generic dbparams \
+  --from-literal user=operator1 \
+  --from-literal password=redhat123 \
+  --from-literal database=quotesdb
+•	Add environment variables from secret to deployments:
+oc set env deployment/mysql8 --from=secret/dbparams --prefix=MYSQL_
+oc set env deployment/frontend --from=secret/dbparams \
+  QUOTES_HOSTNAME=quotesdb
+________________________________________
+Step 3: Deployments
+•	Create deployments with 0 replicas initially (scale later or triggers will handle scaling):
+oc create deployment mysql8 --image=mysql8:1 --replicas=0
+oc create deployment frontend --image=registry.ocp4.example.com:8443/redhattraining/famous-quotes:2-42 --replicas=0
+•	Add image triggers for automatic rollout:
+oc set triggers deployment/mysql8 --from-image=mysql8:1 --containers=mysql8
+________________________________________
+Step 4: Persistent Volumes
+•	Add persistent volume to MySQL deployment:
+oc set volumes deployment/mysql8 --add --claim-class=lvms-vg1 --claim-size=2Gi --mount-path=/var/lib/mysql
+________________________________________
+Step 5: Expose Services and Routes
+•	Expose MySQL service (internal):
+oc expose deployment/mysql8 --port=3306
+•	Expose frontend application externally:
+oc expose deployment/frontend --port=8000
+oc expose service/frontend
+•	Resulting route: http://frontend-review.apps.ocp4.example.com
+________________________________________
+Step 6: Test
+•	Use curl or a browser to access the route and verify the frontend connects to the MySQL backend.
+•	Update image stream tags to test automatic rollouts if new images become available.
+________________________________________
+Step 7: Lab Completion
+•	Grade your work:
+lab grade compreview-deploy
+•	Finish and clean up:
+lab finish compreview-deploy
+
+
