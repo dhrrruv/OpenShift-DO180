@@ -1,0 +1,286 @@
+Guided Exercise: Inspect Kubernetes Resources (Explained)
+1️⃣ Start the Lab Environment
+lab start cli-resources
+What it does
+•	Prepares the OpenShift cluster for the exercise
+•	Creates a project (namespace) called cli-resources
+•	Deploys an example application myapp
+________________________________________
+2️⃣ Login to the Cluster
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+Explanation
+•	oc = OpenShift CLI
+•	login authenticates you to the cluster
+•	developer = normal application user
+________________________________________
+3️⃣ Select the Project
+oc project cli-resources
+Explanation
+OpenShift uses projects (namespaces) to isolate resources.
+Example resources inside a project:
+•	pods
+•	deployments
+•	services
+•	configmaps
+________________________________________
+4️⃣ List All Supported Kubernetes Resource Types
+oc api-resources
+This command shows:
+Column	Meaning
+NAME	Resource name
+SHORTNAME	CLI shortcut
+APIVERSION	API group + version
+NAMESPACED	Whether resource belongs to namespace
+KIND	Object type
+Example:
+NAME	SHORTNAME	APIVERSION	NAMESPACED	KIND
+pods	po	v1	true	Pod
+nodes	no	v1	false	Node
+deployments	deploy	apps/v1	true	Deployment
+________________________________________
+5️⃣ Show Only Namespaced Resources
+oc api-resources --namespaced
+Why?
+These resources exist inside projects.
+Examples:
+•	Pods
+•	Deployments
+•	Services
+•	ConfigMaps
+________________________________________
+Count them
+oc api-resources --namespaced -o name | wc -l
+Example result:
+122
+Meaning:
+Cluster supports 122 namespaced resource types
+________________________________________
+6️⃣ Show Non-Namespaced Resources
+oc api-resources --namespaced=false
+Examples:
+•	nodes
+•	namespaces
+•	clusteroperators
+•	persistentvolumes
+________________________________________
+Count them
+oc api-resources --namespaced=false -o name | wc -l
+Example:
+129
+Meaning:
+Cluster has 129 cluster-wide resource types
+________________________________________
+7️⃣ Show Resources From Core API Group
+oc api-resources --api-group ''
+Core API group contains
+Basic Kubernetes resources like:
+•	Pods
+•	Services
+•	Nodes
+•	ConfigMaps
+•	Secrets
+Example output:
+NAME	KIND
+pods	Pod
+services	Service
+nodes	Node
+configmaps	ConfigMap
+________________________________________
+8️⃣ Understand a Resource Schema
+Example: Pods
+oc explain pods
+Shows
+•	Description
+•	Fields
+•	Structure
+Example fields:
+apiVersion
+kind
+metadata
+spec
+status
+________________________________________
+9️⃣ List Pods in the Project
+oc get pods
+Example:
+NAME                     READY   STATUS
+myapp-54fcdcd9d7-2h5vx   1/1     Running
+Meaning:
+•	Pod belongs to deployment myapp
+________________________________________
+🔟 Inspect Pod Details
+oc describe pod myapp-54fcdcd9d7-2h5vx
+Shows
+•	Container image
+•	IP address
+•	Events
+•	Restart count
+•	Scheduler info
+Example:
+Image: registry.ocp4.example.com:8443/ubi8/httpd-24
+IP: 10.8.0.127
+________________________________________
+11️⃣ View Pod as YAML
+oc get pod myapp-54fcdcd9d7-2h5vx -o yaml
+YAML shows full object structure
+Example:
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp-54fcdcd9d7
+spec:
+  containers:
+  - name: myapp
+    image: ubi8/httpd-24
+Difference
+Command	Use
+describe	human readable
+get -o yaml/json	machine structured
+________________________________________
+12️⃣ Resources From Apps API Group
+oc api-resources --api-group apps
+Example resources:
+Resource	Purpose
+deployments	manage pods
+replicasets	maintain pod replicas
+daemonsets	run pod on every node
+statefulsets	stateful applications
+________________________________________
+13️⃣ Understand Deployment Schema
+oc explain deployments
+Deployment manages:
+•	Pod replicas
+•	Rolling updates
+•	Scaling
+________________________________________
+14️⃣ List Deployments
+oc get deploy
+Example:
+NAME   READY
+myapp  1/1
+________________________________________
+15️⃣ Show Deployment Details
+oc get deploy myapp -o wide
+Shows:
+CONTAINERS: myapp
+IMAGE: registry.ocp4.example.com/ubi8/httpd
+________________________________________
+16️⃣ Describe Deployment
+oc describe deployment myapp
+Shows:
+•	replicas
+•	update strategy
+•	events
+•	ReplicaSet
+Example:
+Replicas: 1 desired | 1 available
+Strategy: RollingUpdate
+________________________________________
+17️⃣ OpenShift Configuration API Group
+oc api-resources --api-group config.openshift.io
+These resources configure the cluster itself.
+Examples:
+Resource	Purpose
+clusteroperators	cluster components
+clusterversion	cluster version
+infrastructure	platform details
+networks	networking
+scheduler	pod scheduling
+________________________________________
+18️⃣ Project Resource
+oc explain projects
+Project
+OpenShift equivalent of namespace.
+Contains:
+•	users
+•	quotas
+•	resources
+________________________________________
+19️⃣ Describe Project
+oc describe project cli-resources
+Shows:
+•	labels
+•	annotations
+•	quotas
+•	status
+Example:
+Status: Active
+________________________________________
+20️⃣ Get Project as JSON
+oc get project cli-resources -o json
+Shows structured output:
+apiVersion: project.openshift.io/v1
+kind: Project
+metadata:
+  name: cli-resources
+________________________________________
+21️⃣ Cluster Services Access
+Developer user cannot access system namespaces.
+Example:
+oc get pods -n openshift-etcd
+Error:
+Forbidden
+Because:
+developer ≠ cluster admin
+________________________________________
+22️⃣ Login as Admin
+oc login -u admin -p redhatocp
+________________________________________
+23️⃣ List ETCD Pods
+oc get pods -n openshift-etcd
+Example:
+etcd-master01
+ETCD stores:
+•	cluster state
+•	configuration
+•	metadata
+________________________________________
+24️⃣ Extract Container Image Using JSONPath
+oc get pods etcd-master01 -n openshift-etcd \
+-o=jsonpath='{.spec.containers[0].image}'
+Example output:
+quay.io/openshift-release-dev/ocp-v4
+________________________________________
+25️⃣ Same Using jq
+oc get pod etcd-master01 -o json | jq .spec.containers[0].image
+________________________________________
+26️⃣ Same Using Go Template
+oc get pod etcd-master01 \
+-o go-template='{{(index .spec.containers 0).image}}'
+________________________________________
+27️⃣ Filter YAML with yq
+oc get pod prometheus-k8s-0 -n openshift-monitoring -o yaml | yq '.status.conditions'
+Shows pod conditions:
+Ready
+Initialized
+ContainersReady
+PodScheduled
+________________________________________
+28️⃣ Custom Columns Output
+Example:
+oc get pods -n openshift-storage \
+-o custom-columns=PodName:".metadata.name",\
+ContainerName:"spec.containers[].name",\
+Phase:"status.phase",\
+IP:"status.podIP",\
+Ports:"spec.containers[].ports[].containerPort"
+Output:
+PodName        ContainerName  Phase   IP        Ports
+lvms-operator  manager        Running 10.8.0.97 9443
+________________________________________
+29️⃣ Finish Lab
+lab finish cli-resources
+Why?
+•	Clean environment
+•	Avoid conflicts with next labs
+________________________________________
+🔑 Most Important Commands (Exam Focus)
+Command	Purpose
+oc api-resources	list resource types
+oc explain	view schema
+oc get	retrieve resources
+oc describe	detailed human info
+oc get -o yaml/json	structured output
+oc get -o jsonpath	extract fields
+oc get -o custom-columns	custom output
+
