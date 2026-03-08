@@ -1,0 +1,125 @@
+Guided Exercise: Application High Availability with Kubernetes
+Simulate different types of application failures and observe how Kubernetes handles them.
+Outcomes
+Explore how the restartPolicy attribute affects crashing pods.
+Observe the behavior of a slow-starting application that has no configured probes.
+Use a deployment to scale the application, and observe the behavior of a broken pod.
+As the student user on the workstation machine, use the lab command to prepare your system for this exercise.
+
+1. Lab Setup
+•	You start the lab environment:
+lab start reliability-ha
+What it does:
+•	Creates the reliability-ha project in OpenShift.
+•	Provides the YAML resource files and the long-load container image, which has endpoints to simulate crashes and unhealthy states.
+•	Log in as the developer user:
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+oc project reliability-ha
+You are now working in the reliability-ha project and ready to create pods.
+________________________________________
+2. Create a Pod with restartPolicy: Always
+YAML manifest (long-load.yaml):
+apiVersion: v1
+kind: Pod
+metadata:
+  name: long-load
+spec:
+  containers:
+  - image: registry.ocp4.example.com:8443/redhattraining/long-load:v1
+    name: long-load
+    securityContext:
+      allowPrivilegeEscalation: false
+  restartPolicy: Always
+•	Create pod:
+oc apply -f long-load.yaml
+•	Check pod is running:
+oc exec long-load -- curl -s localhost:3000/health
+# Ok
+What you’re learning:
+•	restartPolicy: Always ensures Kubernetes restarts the pod if it crashes.
+•	This simulates automatic recovery in HA.
+________________________________________
+3. Crash the Pod
+•	Trigger the pod to crash using the app’s /destruct endpoint:
+oc exec long-load -- curl -s localhost:3000/destruct
+•	Observe pod restart count:
+oc get pods
+Observation:
+•	The pod restarts once automatically due to restartPolicy: Always.
+Theory: HA works because Kubernetes detects container failure and restarts it automatically.
+________________________________________
+4. Delete the Pod Manually
+oc delete pod long-load
+Observation:
+•	Pod is not re-created because you manually created it outside of a Deployment.
+•	Key idea: Only higher-level controllers (Deployment/StatefulSet) guarantee persistent HA.
+________________________________________
+5. restartPolicy: Never
+•	Modify YAML:
+restartPolicy: Never
+•	Apply:
+oc apply -f long-load.yaml
+•	Crash pod with /destruct:
+oc exec long-load -- curl -s localhost:3000/destruct
+Observation:
+•	Pod does NOT restart. Status shows Error.
+Theory: Never disables automatic restart, showing why Always is preferred for HA workloads.
+________________________________________
+6. Simulate Slow-Starting Application
+•	Add a startup delay using environment variable:
+env:
+  - name: START_DELAY
+    value: "60000"  # 60 seconds
+•	Keep restartPolicy: Always.
+•	Apply pod and test:
+oc apply -f long-load.yaml
+oc exec long-load -- curl -s localhost:3000/health
+# app is still starting
+•	After 60 seconds:
+oc exec long-load -- curl -s localhost:3000/health
+# Ok
+Theory:
+•	Without probes, Kubernetes thinks the pod is ready immediately, even if the app is still starting.
+•	Startup delays or startup probes fix this by telling the cluster when the app is actually ready.
+________________________________________
+7. Using a Deployment for Scaling
+•	Deployment YAML (long-load-deploy.yaml) defines:
+spec:
+  replicas: 3
+  containers:
+  - image: registry.ocp4.example.com:8443/redhattraining/long-load:v1
+    env:
+    - name: START_DELAY
+      value: "15000"  # 15 seconds
+•	Apply deployment:
+oc apply -f long-load-deploy.yaml
+•	Load-test the application:
+./load-test.sh
+•	Put one pod into broken state:
+curl long-load-reliability-ha.apps.ocp4.example.com/togglesick
+Observation:
+•	Some requests fail (app is unhealthy), but the Deployment ensures other pods continue serving traffic.
+•	When a pod crashes, Deployment recreates it, showing HA in action at a multi-pod level.
+________________________________________
+8. Finish Lab
+lab finish reliability-ha
+•	Cleans up resources to avoid affecting future labs.
+________________________________________
+Key Takeaways (Theory)
+1.	restartPolicy: Controls pod auto-restart (Always, OnFailure, Never).
+2.	Pod vs Deployment: Pod alone = manual HA; Deployment = automated HA.
+3.	Health & Startup delays: Probes or delays prevent routing traffic to unready pods.
+4.	Scaling & Load Balancing: Multiple replicas allow service continuity even if one pod fails.
+5.	Simulated failures: Using /destruct and /togglesick endpoints demonstrates Kubernetes HA in real scenarios.
+________________________________________
+Commands Cheat-Sheet
+Task	Command
+Login	oc login -u developer -p developer https://api.ocp4.example.com:6443
+Switch project	oc project reliability-ha
+Create pod	oc apply -f long-load.yaml
+Crash pod	oc exec long-load -- curl -s localhost:3000/destruct
+Check pod status	oc get pods
+Delete pod	oc delete pod long-load
+Apply deployment	oc apply -f long-load-deploy.yaml
+Load test	./load-test.sh
+
