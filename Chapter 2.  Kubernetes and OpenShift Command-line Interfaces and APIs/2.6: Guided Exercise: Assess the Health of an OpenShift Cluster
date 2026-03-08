@@ -1,0 +1,235 @@
+1️⃣ Start the Lab Environment
+lab start cli-health
+This prepares the environment and required resources for the exercise.
+________________________________________
+2️⃣ Login to the OpenShift Cluster
+oc login -u admin -p redhatocp https://api.ocp4.example.com:6443
+Purpose:
+Authenticates you to the OpenShift cluster as an admin user.
+________________________________________
+3️⃣ Check Installed Operators
+Operators manage applications and cluster components.
+List user-installed operators
+oc get operators
+Example:
+lvms-operator.openshift-storage
+metallb-operator.metallb-system
+List default cluster operators
+oc get clusteroperators
+Important fields:
+Field	Meaning
+AVAILABLE	Operator working
+PROGRESSING	Updating or installing
+DEGRADED	Something is wrong
+Healthy cluster usually shows:
+AVAILABLE=True
+PROGRESSING=False
+DEGRADED=False
+________________________________________
+4️⃣ Get Detailed Operator Information
+Example:
+oc describe clusteroperators openshift-apiserver
+This shows:
+•	status conditions
+•	related objects
+•	version
+•	events
+Important section:
+Conditions:
+Type: Degraded
+Status: False
+Message: All is well
+Meaning → operator is healthy
+________________________________________
+5️⃣ Check Pods of the Operator
+List pods in namespace:
+oc get pods -n openshift-apiserver-operator
+Example:
+openshift-apiserver-operator-85fc9669d-g58sl
+Get detailed status using JSON:
+oc get pod <pod-name> -n openshift-apiserver-operator -o json | jq .status
+Key fields:
+Field	Meaning
+phase	Pod state (Running)
+Ready	Pod ready
+restartCount	container restart count
+podIP	Pod network IP
+________________________________________
+6️⃣ Check Resource Usage of Pods
+View CPU and memory usage:
+oc adm top pods -A --sum
+Example output:
+CPU: 505m
+Memory: 8982Mi
+--sum gives total cluster usage.
+________________________________________
+7️⃣ Check Pods in etcd Namespace
+oc get pods -n openshift-etcd --show-labels
+Example:
+etcd-master01
+installer-1-master01
+installer-2-master01
+________________________________________
+8️⃣ Check Container Resource Usage
+oc adm top pods etcd-master01 -n openshift-etcd --containers
+Example:
+etcd            44m    269Mi
+etcd-metrics     8m     30Mi
+Shows CPU and memory per container.
+________________________________________
+9️⃣ List All Monitoring Resources
+oc get all -n openshift-monitoring
+Shows:
+•	pods
+•	services
+•	deployments
+•	replica sets
+Example pods:
+alertmanager-main
+cluster-monitoring-operator
+kube-state-metrics
+________________________________________
+🔟 View Pod Logs
+Example:
+oc logs alertmanager-main-0 -n openshift-monitoring
+Used to debug:
+•	configuration loading
+•	errors
+•	startup issues
+________________________________________
+1️⃣1️⃣ Check Cluster Events
+oc get events -n openshift-kube-controller-manager
+Events show:
+•	pod creation
+•	leader election
+•	image pulling
+•	errors
+Example:
+LeaderElection
+Pulled
+Started
+________________________________________
+1️⃣2️⃣ Check Node Status
+oc get nodes
+Example:
+master01   Ready   control-plane,master,worker
+Healthy node status:
+Ready
+________________________________________
+1️⃣3️⃣ Check Node Resource Usage
+oc adm top node
+Example:
+CPU: 719m
+Memory: 12069Mi
+Shows node utilization.
+________________________________________
+1️⃣4️⃣ Check Node Capacity
+CPU capacity:
+oc get node master01 -o jsonpath='{.status.capacity.cpu}'
+Allocatable CPU:
+oc get node master01 -o jsonpath='{.status.allocatable.cpu}'
+Example:
+Capacity: 6
+Allocatable: 5500m
+________________________________________
+1️⃣5️⃣ Check Max Pods per Node
+oc get node master01 -o jsonpath='{.status.allocatable.pods}'
+Example:
+250
+________________________________________
+1️⃣6️⃣ Inspect Node Resources
+oc describe node master01
+Shows:
+•	CPU requests
+•	memory requests
+•	limits
+•	events
+Example:
+cpu requests: 2809m (51%)
+memory requests: 12359Mi (83%)
+________________________________________
+1️⃣7️⃣ Check Node Service Logs
+View CRI-O container runtime logs:
+oc adm node-logs master01 -u crio --tail 1
+View kubelet logs:
+oc adm node-logs master01 -u kubelet --tail 2
+Important services:
+Service	Purpose
+kubelet	manages containers
+crio	container runtime
+________________________________________
+1️⃣8️⃣ Debug a Node
+oc debug node/master01
+Then access host:
+chroot /host
+Check kubelet:
+systemctl status kubelet
+Check crio:
+systemctl is-active crio
+Exit:
+exit
+exit
+________________________________________
+1️⃣9️⃣ Collect Cluster Debug Data
+Run must-gather:
+oc adm must-gather --dest-dir /home/student/must-gather
+This collects:
+•	cluster configuration
+•	logs
+•	events
+•	operator states
+Used when opening Red Hat support cases.
+________________________________________
+2️⃣0️⃣ Inspect Logs from must-gather
+Example:
+tail -5 ~/must-gather/.../gather.logs
+Shows errors like:
+secrets "support" not found
+server doesn't have resource type "clusters"
+________________________________________
+2️⃣1️⃣ Inspect Specific Operator
+oc adm inspect clusteroperator/openshift-apiserver \
+--dest-dir /home/student/inspect \
+--since 5m
+Collects debugging data only for last 5 minutes.
+________________________________________
+2️⃣2️⃣ View Operator Configuration
+Example:
+cat ~/inspect/.../cluster.yaml
+Shows:
+•	API server configuration
+•	annotations
+•	conditions
+________________________________________
+2️⃣3️⃣ Clean Up
+Delete debugging data:
+rm -rf must-gather inspect
+________________________________________
+2️⃣4️⃣ Finish Lab
+lab finish cli-health
+________________________________________
+🔑 Key Commands Summary
+Task	Command
+Check operators	oc get clusteroperators
+Operator details	oc describe clusteroperators
+List pods	oc get pods
+Pod logs	oc logs <pod>
+Pod resource usage	oc adm top pods
+Node status	oc get nodes
+Node resource usage	oc adm top node
+Node logs	oc adm node-logs
+Debug node	oc debug node/<node>
+Cluster diagnostics	oc adm must-gather
+Inspect resources	oc adm inspect
+________________________________________
+✅ What this exercise teaches
+You learn how to verify cluster health by checking:
+•	operators
+•	pods
+•	nodes
+•	services
+•	logs
+•	events
+•	resource usage
+•	debugging data
+
