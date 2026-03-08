@@ -1,0 +1,273 @@
+Guided Exercise: Externalize Configuration of Applications
+Goal of the Exercise
+Deploy a web server and configure it using files stored in a ConfigMap instead of storing them inside the container image.
+Outcomes
+You will learn how to:
+1.	Create a deployment
+2.	Expose the deployment using service and route
+3.	Create a ConfigMap from files
+4.	Mount the ConfigMap as a volume
+________________________________________
+Step 1: Prepare the Lab Environment
+Command:
+lab start storage-configs
+What this does
+This command:
+•	Starts the OpenShift cluster lab
+•	Creates required project (namespace)
+•	Prepares files needed for the exercise
+Example files created:
+index.html
+redhatlogo.png
+These will later be stored in the ConfigMap.
+________________________________________
+Step 2: Login to OpenShift Web Console
+Open browser:
+https://console-openshift-console.apps.ocp4.example.com
+Login:
+Username: developer
+Password: developer
+Then switch perspective:
+Administrator
+Why Administrator view?
+Because it allows you to manage:
+•	Deployments
+•	Services
+•	Routes
+•	ConfigMaps
+________________________________________
+Step 3: Create Web Application Deployment
+Navigate:
+Workloads → Deployments → Create Deployment
+Fill values:
+Field	Value
+Deployment Name	webconfig
+Image	registry.ocp4.example.com:8443/ubi9/httpd-24:latest
+Project	storage-configs
+Container Image Used
+ubi9/httpd-24
+This is:
+Red Hat Universal Base Image with Apache HTTP server
+It runs a web server on port 8080.
+________________________________________
+What happens after deployment?
+OpenShift creates:
+Deployment
+ReplicaSet
+Pods
+Pods run Apache HTTPD web server.
+Wait until:
+3 pods running
+Example:
+webconfig-xxxxx
+webconfig-yyyyy
+webconfig-zzzzz
+________________________________________
+Step 4: Expose the Application (Service + Route)
+Pods cannot be accessed directly.
+So we create:
+1️⃣ Service → internal access
+2️⃣ Route → external access
+________________________________________
+Step 5: Create Service
+Navigate:
+Networking → Services → Create Service
+Fill:
+Field	Value
+Service Name	webconfig-svc
+App Selector	webconfig
+Port	8080
+Target Port	8080
+________________________________________
+What Service Does
+Service acts as a load balancer for pods.
+User → Service → Pod
+Even if pods change, the service IP remains constant.
+________________________________________
+CLI Alternative
+oc expose deploy/webconfig \
+--namespace storage-configs \
+--name webconfig-svc \
+--selector app=webconfig \
+--target-port 8080 \
+--port 8080
+Command Explanation
+Part	Meaning
+oc expose	create service
+deploy/webconfig	deployment to expose
+--namespace	project
+--name	service name
+--selector	selects pods
+--target-port	container port
+--port	service port
+________________________________________
+Step 6: Create Route (External Access)
+Navigate:
+Networking → Routes → Create Route
+Fill values:
+Field	Value
+Route Name	webconfig-rt
+Service	webconfig-svc
+Target Port	8080
+________________________________________
+What Route Does
+Route exposes application outside the cluster.
+Flow:
+User Browser
+     ↓
+Route
+     ↓
+Service
+     ↓
+Pods
+________________________________________
+CLI Alternative
+oc expose svc/webconfig-svc \
+--namespace storage-configs \
+--name webconfig-rt
+Explanation:
+Part	Meaning
+svc	service
+oc expose	create route
+--name	route name
+________________________________________
+Step 7: Access Web Application
+Open route link.
+You will see:
+Apache HTTP Test Page
+This is the default page inside container image.
+________________________________________
+Step 8: Create ConfigMap from Files
+Navigate:
+Workloads → ConfigMaps → Create ConfigMap
+Set name:
+webfiles
+________________________________________
+Add Data File
+Key:
+index.html
+Value file:
+/home/student/DO180/labs/storage-configs/index.html
+________________________________________
+Add Binary Data File
+Key:
+redhatlogo.png
+Value file:
+/home/student/DO180/labs/storage-configs/redhatlogo.png
+________________________________________
+Why Binary Data?
+Images like:
+.png
+.jpg
+are binary files, so they go under:
+binaryData
+________________________________________
+ConfigMap Structure
+It will look like:
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webfiles
+data:
+  index.html: <html content>
+
+binaryData:
+  redhatlogo.png: <base64 encoded image>
+________________________________________
+Step 9: Mount ConfigMap as Volume
+Login to cluster:
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+________________________________________
+Select project:
+oc project storage-configs
+________________________________________
+Mount ConfigMap:
+oc set volume deployment/webconfig \
+--add \
+--type configmap \
+--configmap-name webfiles \
+--name webfiles-vol \
+--mount-path /var/www/html/
+________________________________________
+Command Explanation
+Option	Meaning
+oc set volume	modify deployment volume
+--add	add new volume
+--type configmap	source is ConfigMap
+--configmap-name webfiles	ConfigMap name
+--name webfiles-vol	volume name
+--mount-path	container directory
+________________________________________
+What Happens Now
+Files from ConfigMap are mounted into container:
+/var/www/html/
+Example inside container:
+/var/www/html/index.html
+/var/www/html/redhatlogo.png
+This directory is Apache web server root directory.
+So Apache serves these files.
+________________________________________
+Step 10: Verify Deployment
+Run:
+oc get deployment
+Example output:
+NAME        READY   UP-TO-DATE   AVAILABLE
+webconfig   3/3     3            3
+Meaning:
+3 pods running successfully
+________________________________________
+Step 11: Verify Web Page
+Refresh browser.
+Now you see custom web page from ConfigMap.
+Click:
+Click me!
+It loads:
+Red Hat Logo
+That image comes from:
+redhatlogo.png (ConfigMap)
+________________________________________
+Architecture Flow
+Browser
+   │
+   ▼
+Route (webconfig-rt)
+   │
+   ▼
+Service (webconfig-svc)
+   │
+   ▼
+Pods (webconfig)
+   │
+   ▼
+ConfigMap Volume
+   │
+   ▼
+/var/www/html/
+   │
+   ▼
+index.html + redhatlogo.png
+________________________________________
+Step 12: Finish the Lab
+Run:
+lab finish storage-configs
+Purpose
+This command:
+•	Deletes created resources
+•	Cleans cluster
+•	Prepares next lab
+________________________________________
+Key Concepts Learned
+Concept	Explanation
+Deployment	runs pods
+Service	exposes pods internally
+Route	exposes application externally
+ConfigMap	stores configuration files
+Volume mount	inject files into container
+________________________________________
+Most Important Command in This Lab
+oc set volume deployment/webconfig \
+--type configmap \
+--configmap-name webfiles \
+--mount-path /var/www/html/
+This command injects configuration files into the container.
+
