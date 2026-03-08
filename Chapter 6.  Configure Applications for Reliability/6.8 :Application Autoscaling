@@ -1,0 +1,77 @@
+Application Autoscaling
+Objective
+•	Automatically scale the number of pods in a deployment based on load metrics like CPU or memory.
+•	Ensure high availability, performance, and efficient resource usage without manual intervention.
+________________________________________
+2. Key Concepts
+Horizontal Pod Autoscaler (HPA)
+•	Monitors metrics (CPU/memory) and adjusts the number of pods in a deployment, replica set, or stateful set.
+•	Works as a control loop running inside the Kubernetes controller manager.
+•	Default check interval: every 15 seconds.
+Autoscaling Process
+1.	HPA retrieves the target metric from its definition.
+2.	Collects current metric values for each pod from the metrics server.
+3.	Computes usage percentage for each pod based on resource requests.
+4.	Averages usage across all targeted pods.
+5.	Determines scaling ratio and adjusts pod count (up/down) accordingly.
+Why HPA?
+•	High Availability: Adds pods during spikes.
+•	Cost Efficiency: Removes pods when load is low.
+•	Operational Efficiency: Reduces human intervention.
+________________________________________
+3. Prerequisites
+•	Pods must have resource requests (CPU/memory) defined.
+Without requests, HPA cannot calculate utilization.
+________________________________________
+4. Creating an HPA
+a. Using oc autoscale Command
+oc autoscale deployment/hello --min 1 --max 10 --cpu-percent 80
+•	Maintains 1–10 pods, targeting 80% average CPU utilization.
+b. Using a YAML Manifest
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hello
+spec:
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - resource:
+      name: cpu
+      target:
+        averageUtilization: 80
+    type: Resource
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hello
+•	minReplicas / maxReplicas → pod limits
+•	averageUtilization → target CPU or memory usage
+•	scaleTargetRef → resource to scale (deployment, etc.)
+Memory-based scaling:
+metrics:
+- resource:
+    name: memory
+    target:
+      averageUtilization: 80
+Note: Memory-based scaling is not ideal for JVM apps or apps that pre-allocate memory.
+c. Using Web Console
+•	Developer perspective → Topology → Select deployment → Actions → Add Horizontal Pod Autoscaler.
+•	Set min/max pods and metric target (CPU or memory).
+________________________________________
+5. Monitoring HPA
+View HPA Status
+oc get hpa
+# TARGETS may show <unknown> initially until metrics are collected
+Describe HPA for Events
+oc describe hpa hello
+•	Shows scaling events, target utilization, min/max pods, and last scaling actions.
+View Pod Metrics
+oc adm top pods -n <project>
+________________________________________
+6. Notes
+•	HPA scales only pods with defined resource requests.
+•	CPU limit throttles pod execution; memory limit kills pods if exceeded (OOMKilled).
+•	Min/Max replicas accommodate bursts and prevent cluster overload.
+•	HPA is automatic; you do not manually adjust replicas during scaling events.
+
