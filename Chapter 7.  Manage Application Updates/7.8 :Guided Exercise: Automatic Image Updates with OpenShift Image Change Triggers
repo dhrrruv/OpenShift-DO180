@@ -1,0 +1,71 @@
+Guided Exercise: Automatic Image Updates with OpenShift Image Change Triggers
+Objective
+Automatically update an application deployment using OpenShift image streams and image change triggers, then roll back if needed.
+________________________________________
+1. Prepare the Lab Environment
+lab start updates-triggers
+•	Sets up project updates-triggers.
+•	Deploys a web application (version deployment) with 10 replicas.
+•	Prepares curl_loop.sh to test live updates.
+Login and set project:
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+oc project updates-triggers
+________________________________________
+2. Inspect Image Stream
+Check local lookup policy and existing tags:
+oc set image-lookup
+# Output should show: versioned-hello  true
+oc get istag
+oc get istag versioned-hello:1 -o jsonpath='{.tag.from.name}{"\n"}'
+•	Confirms versioned-hello:1 exists.
+•	Shows SHA ID of source image.
+________________________________________
+3. Inspect Deployment
+oc get deployment -o wide
+•	Deployment: version
+•	Container: versioned-hello
+•	Image: versioned-hello:1 (resolved to SHA ID)
+________________________________________
+4. Run Continuous Test Requests
+/home/student/DO180/labs/updates-triggers/curl_loop.sh
+•	Sends repeated requests to the deployed application.
+•	Leave running to observe rolling updates.
+________________________________________
+5. Add Image Trigger to Deployment
+oc set triggers deployment/version \
+  --from-image versioned-hello:1 --containers versioned-hello
+Verify trigger:
+oc get deployment version \
+  -o jsonpath='{.metadata.annotations.image\.openshift\.io/triggers}' | jq .
+•	Confirms Deployment watches versioned-hello:1.
+________________________________________
+6. Update Image Stream Tag
+oc tag registry.ocp4.example.com:8443/redhattraining/versioned-hello:1-125 versioned-hello:1
+•	Triggers rolling update.
+•	Observe in curl_loop.sh:
+o	Old pods respond initially.
+o	During rollout, both old and new pods respond.
+o	After rollout, only new version (v1.1) responds.
+Verify deployment now uses new SHA:
+oc get deployment version -o wide
+oc describe is versioned-hello
+________________________________________
+7. Roll Back Deployment
+Revert the image stream tag to previous SHA:
+oc tag registry.ocp4.example.com:8443/redhattraining/versioned-hello@sha256:66e0...105e versioned-hello:1
+•	Triggers rollback.
+•	Observe curl_loop.sh:
+o	Pods with old version (v1.0) respond again.
+________________________________________
+8. Finish Lab
+lab finish updates-triggers
+•	Cleans up resources to avoid affecting future exercises.
+________________________________________
+Key Concepts
+1.	Image triggers automatically roll out deployments when an image stream tag changes.
+2.	SHA IDs ensure reproducible deployments.
+3.	Rolling updates: old and new pods coexist during rollout.
+4.	Rollback is simple by reverting the tag to the previous SHA.
+5.	Useful for managing updates safely in production-like environment
+
+n
