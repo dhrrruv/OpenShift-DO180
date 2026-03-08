@@ -1,0 +1,157 @@
+Lab: Deploy Managed and Networked Applications on Kubernetes
+Objective
+Deploy a MySQL database and a PHP web application, connect them together, and expose the web app externally.
+You will learn how to:
+•	Deploy a MySQL database container
+•	Deploy a PHP web application
+•	Configure environment variables
+•	Create services for internal communication
+•	Expose an application using a route
+________________________________________
+1. Start the Lab Environment
+lab start deploy-review
+This command:
+•	Prepares the cluster
+•	Creates the project database-applications
+________________________________________
+2. Login to OpenShift
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+________________________________________
+3. Switch to the Project
+oc project database-applications
+________________________________________
+4. Deploy the MySQL Database
+Create the MySQL deployment.
+oc create deployment mysql-app \
+--image registry.ocp4.example.com:8443/redhattraining/mysql-app:v1
+Verify pod status:
+oc get pods
+Example output:
+mysql-app-75dfd58f99-5xfqc   0/1   Error
+The pod is failing.
+________________________________________
+5. Identify the Root Cause
+Check logs.
+oc logs <mysql-pod-name>
+Example:
+You must specify the following environment variables:
+MYSQL_USER
+MYSQL_PASSWORD
+MYSQL_DATABASE
+The container requires environment variables to start.
+________________________________________
+6. Configure Required Environment Variables
+Set the variables for the deployment.
+oc set env deployment/mysql-app \
+MYSQL_USER=redhat \
+MYSQL_PASSWORD=redhat123 \
+MYSQL_DATABASE=world_x
+Verify pods again:
+oc get pods
+Expected:
+mysql-app-xxxx   1/1   Running
+________________________________________
+7. Load the Database Data
+Run the SQL script inside the pod.
+oc exec -it <mysql-pod-name> \
+-- /bin/bash -c "mysql -uredhat -predhat123 </tmp/world_x.sql"
+________________________________________
+8. Verify Database Access
+Open a shell inside the container.
+oc rsh <mysql-pod-name>
+Connect to MySQL:
+mysql -uredhat -predhat123 world_x
+Expected:
+Welcome to the MySQL monitor
+Exit MySQL:
+exit
+Exit container:
+exit
+________________________________________
+9. Create a Service for MySQL
+Expose the MySQL deployment.
+oc expose deployment mysql-app \
+--name mysql-service \
+--port 3306 \
+--target-port 3306
+Verify service:
+oc get services
+Example:
+mysql-service   ClusterIP   172.30.x.x   3306/TCP
+Check endpoints:
+oc get endpoints
+Example:
+mysql-service   10.8.0.102:3306
+________________________________________
+10. Deploy the PHP Web Application
+Create the PHP deployment.
+oc create deployment php-app \
+--image registry.ocp4.example.com:8443/redhattraining/php-webapp:v1
+Verify pods:
+oc get pods
+Expected:
+php-app-xxxx     Running
+mysql-app-xxxx   Running
+________________________________________
+11. Create a Service for the PHP Application
+Expose the deployment.
+oc expose deployment php-app \
+--name php-svc \
+--port 8080 \
+--target-port 8080
+Verify:
+oc get services
+Example:
+php-svc   ClusterIP   172.30.x.x   8080/TCP
+Check endpoints:
+oc get endpoints
+Example:
+php-svc   10.8.0.107:8080
+________________________________________
+12. Expose the Web Application Externally
+Create a route.
+oc expose service/php-svc --name phpapp
+Verify route:
+oc get routes
+Example:
+phpapp   phpapp-database-applications.apps.ocp4.example.com
+________________________________________
+13. Test the Application
+Open the route in a browser:
+phpapp-database-applications.apps.ocp4.example.com
+The PHP application should retrieve data from the MySQL database.
+________________________________________
+14. Grade the Lab
+lab grade deploy-review
+Fix any errors if needed.
+________________________________________
+15. Finish the Lab
+lab finish deploy-review
+________________________________________
+Architecture of the Application
+User Browser
+     │
+     ▼
+ OpenShift Route
+     │
+     ▼
+  php-svc (Service)
+     │
+     ▼
+   php-app Pod
+     │
+     ▼
+ mysql-service
+     │
+     ▼
+ mysql-app Pod
+________________________________________
+Key Concepts From This Lab
+Concept	Explanation
+Deployment	Creates and manages pods
+Environment Variables	Required configuration for containers
+Service	Internal communication between pods
+Route	External access to applications
+oc exec / oc rsh	Access container shell
+Logs	Used to troubleshoot container failures
+
