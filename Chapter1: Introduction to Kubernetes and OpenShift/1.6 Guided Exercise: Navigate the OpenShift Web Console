@@ -1,0 +1,337 @@
+Guided Exercise: Navigate the OpenShift Web Console
+Objective
+In this exercise you learn to:
+1.	Access the OpenShift Web Console
+2.	Create a project
+3.	Deploy an application from Git
+4.	View pods, deployments, services, and routes
+5.	Explore cluster resources using Administrator perspective
+This exercise helps you understand how applications run inside OpenShift.
+________________________________________
+Step 1: Prepare the Lab Environment
+Command:
+lab start intro-navigate
+What this command does
+It prepares the environment by:
+•	validating the OpenShift cluster
+•	resetting the lab state
+•	ensuring required services are running
+This ensures the lab works correctly.
+________________________________________
+Step 2: Login to OpenShift Cluster
+Command:
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+Explanation
+Part	Meaning
+oc	OpenShift CLI
+login	authenticate to cluster
+-u developer	username
+-p developer	password
+https://api...	API server address
+If login is successful:
+Login successful
+Now the CLI can interact with the cluster.
+________________________________________
+Step 3: Get Web Console URL
+Command:
+oc whoami --show-console
+Example output:
+https://console-openshift-console.apps.ocp4.example.com
+What it does
+This command prints the web console address.
+You open this URL in a browser to access the OpenShift GUI.
+________________________________________
+Step 4: Login to Web Console
+Steps:
+1.	Open browser
+2.	Enter console URL
+3.	Select Red Hat Identity Management
+4.	Login using:
+username: developer
+password: developer
+You will reach the OpenShift Home Page.
+If a tour appears → click Skip Tour.
+________________________________________
+Step 5: Use Developer Perspective
+Developers use the Developer Perspective to deploy applications.
+Menu path:
++Add → Create Project
+________________________________________
+Step 6: Create a New Project
+Create project:
+Name: intro-navigate
+Display Name: intro-navigate
+Description: sample project
+Then click:
+Create
+What is a Project?
+A Project = Kubernetes Namespace + OpenShift features
+Projects allow:
+•	resource isolation
+•	multi-user environments
+•	application grouping
+CLI equivalent:
+oc new-project intro-navigate
+________________________________________
+Step 7: View Topology Page
+After creating the project:
+Topology
+This page visually shows:
+•	applications
+•	pods
+•	services
+•	connections
+It is the graphical representation of the application architecture.
+________________________________________
+Step 8: Deploy Application from Git
+Go to:
++Add → Import from Git
+Enter:
+https://git.ocp4.example.com/developer/intro-navigate.git
+Git Type:
+GitLab
+Then click:
+Create
+________________________________________
+What Happens After Clicking Create
+OpenShift automatically performs several actions.
+Pipeline:
+Git repository
+       ↓
+Build container image
+       ↓
+Create deployment
+       ↓
+Create pod
+       ↓
+Expose service
+So developers only provide source code.
+OpenShift handles the rest.
+________________________________________
+Step 9: Application Appears in Topology
+The Topology page now shows:
+intro-navigate-git-app
+This represents the deployed application.
+Inside this application:
+•	Deployment
+•	Pod
+•	Service
+________________________________________
+Step 10: View Deployment Details
+Click the D icon.
+This opens the deployment panel.
+Select:
+Details
+Wait until:
+1 Pod Running
+This means the application has successfully started.
+________________________________________
+Deployment Concept
+A Deployment manages pods.
+Responsibilities:
+•	create pods
+•	update pods
+•	scale pods
+CLI command:
+oc get deployments
+________________________________________
+Step 11: Deployment Actions
+Click:
+Actions
+Available actions include:
+•	restart deployment
+•	scale pods
+•	delete deployment
+•	edit configuration
+CLI equivalent example:
+Scale deployment:
+oc scale deployment intro-navigate-git --replicas=3
+________________________________________
+Step 12: Switch to Administrator Perspective
+Now switch perspective.
+Steps:
+Developer → Administrator
+This view shows cluster infrastructure.
+Administrator perspective includes:
+•	nodes
+•	networking
+•	operators
+•	storage
+•	authentication
+________________________________________
+Step 13: View Project Details
+Navigate:
+Home → Projects
+Select:
+intro-navigate
+This page shows:
+•	project status
+•	CPU usage
+•	memory usage
+•	resource summary
+________________________________________
+Step 14: View Pods
+Menu:
+Workloads → Pods
+Pods shown for project:
+intro-navigate pod
+Pod Concept
+A pod is the smallest deployable unit in Kubernetes.
+Contains:
+•	one or more containers
+CLI command:
+oc get pods
+________________________________________
+Step 15: View Deployments
+Menu:
+Workloads → Deployments
+You will see:
+intro-navigate-git
+Click it to view:
+•	replica count
+•	pod status
+•	rollout history
+CLI command:
+oc get deployments
+________________________________________
+Step 16: View Services
+Menu:
+Networking → Services
+Service:
+intro-navigate-git
+Service Purpose
+A service provides stable network access to pods.
+Because pod IP addresses change.
+Service acts as a stable endpoint.
+CLI command:
+oc get services
+________________________________________
+Step 17: View Routes
+Menu:
+Networking → Routes
+Route:
+intro-navigate-git
+Route Purpose
+A Route exposes the application externally.
+Example URL:
+https://app.apps.cluster.com
+CLI command:
+oc get routes
+Create route example:
+oc expose service intro-navigate-git
+________________________________________
+Step 18: Delete the Project
+Navigate:
+Home → Projects
+Select:
+Delete Project
+Type project name:
+intro-navigate
+Click:
+Delete
+CLI equivalent:
+oc delete project intro-navigate
+________________________________________
+Step 19: Logout from Web Console
+Click username → Log out
+Example:
+developer → Log out
+________________________________________
+Step 20: Login as Admin
+Now login using:
+username: admin
+password: redhatocp
+Admin user can view full cluster details.
+Important rule:
+Do not modify system resources.
+________________________________________
+Step 21: View Installed Operators
+Menu:
+Operators → Installed Operators
+Operators provide:
+•	cluster automation
+•	application lifecycle management
+Examples:
+•	monitoring operator
+•	network operator
+•	storage operator
+________________________________________
+Step 22: View All Pods
+Menu:
+Workloads → Pods
+Admin can see pods from all namespaces.
+CLI equivalent:
+oc get pods -A
+________________________________________
+Step 23: View Deployments
+Menu:
+Workloads → Deployments
+Displays deployments across the cluster.
+CLI command:
+oc get deployments -A
+________________________________________
+Step 24: View Services
+Menu:
+Networking → Services
+Shows all services in the cluster.
+CLI command:
+oc get services -A
+________________________________________
+Step 25: Logout Admin
+Click:
+admin → Log out
+________________________________________
+Step 26: Finish Lab
+Command:
+lab finish intro-navigate
+Purpose
+This command:
+•	cleans lab resources
+•	resets environment
+•	prepares system for next lab
+________________________________________
+Complete Flow of the Lab
+Start Lab
+      ↓
+Login to cluster
+      ↓
+Open web console
+      ↓
+Create project
+      ↓
+Deploy app from Git
+      ↓
+View pods / deployment
+      ↓
+Check services and routes
+      ↓
+Switch to admin perspective
+      ↓
+Inspect cluster resources
+      ↓
+Delete project
+      ↓
+Finish lab
+________________________________________
+Quick Exam Concepts from this Exercise
+Important resources:
+Pod → container runtime unit
+Deployment → manages pods
+Project → OpenShift namespace
+Service → internal networking
+Route → external access
+Operator → automated cluster management
+Important commands:
+Login:
+oc login
+Get console:
+oc whoami --show-console
+Pods:
+oc get pods
+Deployments:
+oc get deployments
+Services:
+oc get services
+Routes:
+oc get routes
+
