@@ -1,0 +1,139 @@
+Guided Exercise: Monitor an OpenShift Cluster
+Objective
+Check the health and status of an OpenShift cluster using the web console and terminal commands.
+You will learn to:
+•	View cluster status from the Overview page
+•	Check node services (kubelet and CRI-O)
+•	Explore Monitoring and Alert rules
+•	View metrics dashboards
+•	Filter and inspect cluster events
+________________________________________
+1. Prepare the Lab Environment
+On the workstation machine, run:
+lab start intro-monitor
+This prepares the cluster for the exercise.
+________________________________________
+2. Login to OpenShift Cluster (Terminal)
+Log in as the developer user:
+oc login -u developer -p developer \
+https://api.ocp4.example.com:6443
+________________________________________
+3. Get the OpenShift Web Console URL
+Run:
+oc whoami --show-console
+Example output:
+https://console-openshift-console.apps.ocp4.example.com
+Open this URL in a web browser.
+________________________________________
+4. Login to the Web Console
+Login using:
+•	Authentication: Red Hat Identity Management
+•	Username: admin
+•	Password: redhatocp
+________________________________________
+5. Check Cluster Overview Page
+Navigate to:
+Home → Overview
+On this page you will see:
+Status Section
+Shows cluster health and performance.
+Cluster Utilization
+Graphs for:
+•	CPU usage
+•	Memory usage
+•	Storage usage
+Details
+Displays information like:
+•	Cluster API address
+•	Cluster ID
+•	OpenShift version
+Cluster Inventory
+Links to:
+•	Nodes
+•	Pods
+•	StorageClasses
+•	PersistentVolumeClaims
+Activity
+Shows:
+•	Running operations
+•	Recent cluster events
+________________________________________
+6. Access Node Terminal
+Go to:
+Compute → Nodes
+Click the node:
+master01
+Then click the Terminal tab.
+________________________________________
+7. Enable Host Commands
+Run:
+chroot /host
+This allows you to run host system commands.
+________________________________________
+8. Check kubelet Service Status
+Run:
+systemctl status kubelet
+This shows the kubelet node agent service status.
+Press q to exit.
+________________________________________
+9. Check CRI-O Container Runtime
+Run:
+systemctl status crio
+This shows the container runtime service used by OpenShift.
+Press q to exit.
+________________________________________
+10. View Alert Rules
+Go to:
+Observe → Alerting
+Open the Alerting Rules tab.
+In the search bar type:
+storageClasses
+Find and open the rule:
+MultipleDefaultStorageClasses
+Check:
+•	Description
+•	Expression
+This rule alerts when multiple default storage classes exist.
+________________________________________
+11. View Cluster Metrics
+Go to:
+Observe → Metrics
+Click:
+Insert example query
+This will show a metrics graph.
+Hover over the graph timeline to view detailed metric values.
+________________________________________
+12. View Cluster Events
+Navigate to:
+Home → Events
+This page shows chronological cluster events.
+Example events:
+•	Pod creation
+•	Container start
+•	Resource updates
+________________________________________
+13. Filter Events
+Use filters to narrow results.
+Filter by Resource
+Select:
+Pod
+Filter by Type
+Select:
+Normal
+Filter by Message
+Enter:
+started container
+This shows events where containers started.
+________________________________________
+14. Finish the Lab
+Run on the workstation:
+lab finish intro-monitor
+This cleans up resources and prepares for the next lab.
+________________________________________
+✅ Skills Learned
+•	Monitor cluster health
+•	Check node services
+•	Use OpenShift monitoring tools
+•	Analyze alerts and metrics
+•	Filter cluster events
+
