@@ -1,0 +1,102 @@
+Lab: Configure an Application for Reliability
+Objective
+•	Ensure application reliability by defining:
+o	Memory resource requests and limits
+o	Readiness probes to prevent routing traffic to unready pods
+o	Horizontal Pod Autoscaler (HPA) to scale based on memory usage
+•	Test scaling behavior under simulated memory load.
+________________________________________
+2. Lab Setup
+lab start reliability-review
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+oc project reliability-review
+•	The longload application is pre-deployed but fails due to high memory requests (8 GiB).
+________________________________________
+3. Diagnose Memory Issue
+•	List pods:
+oc get pods
+•	Pod is Pending due to insufficient memory.
+•	Describe pod to check events:
+oc describe pod <pod-name>
+•	Confirm deployment memory request:
+oc get deployment longload -o jsonpath='{.spec.template.spec.containers[0].resources.requests.memory}{"\n"}'
+•	Output: 8Gi (too high for available nodes).
+________________________________________
+4. Set Correct Memory Requests
+•	Reduce memory request to 512 MiB:
+oc set resources deployment/longload --requests memory=512Mi
+watch oc get pods
+•	Wait for pod to enter Running status.
+________________________________________
+5. Verify Application Readiness
+•	Run looped curl requests:
+~/DO180/labs/reliability-review/curl_loop.sh
+•	Observe application eventually reports Ok.
+________________________________________
+6. Scale Application and Observe Failures
+•	Scale to 3 replicas:
+oc scale deployment/longload --replicas 3
+•	Some requests fail because new pods are not ready.
+•	Application takes ~7 seconds to initialize.
+________________________________________
+7. Configure Readiness Probe
+•	Prevent routing traffic to unready pods:
+oc set probe deployment/longload --readiness \
+  --initial-delay-seconds 7 \
+  --get-url http://:3000/health
+•	Scale back to 1 pod, then test scaling up again:
+oc scale deployment/longload --replicas 3
+•	Curl loop now shows no failed requests.
+________________________________________
+8. Configure Horizontal Pod Autoscaler
+•	Scale based on memory utilization:
+o	Min replicas: 1
+o	Max replicas: 3
+o	Target average memory utilization: 60%
+•	Example HPA YAML (hpa.yml):
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: longload
+  labels:
+    app: longload
+spec:
+  maxReplicas: 3
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: longload
+  metrics:
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 60
+•	Apply HPA:
+oc apply -f ~/DO180/labs/reliability-review/hpa.yml
+watch oc get hpa longload
+________________________________________
+9. Test HPA Behavior
+1.	Simulate memory load (480 MiB per request):
+oc exec deploy/longload -- curl -s localhost:3000/leak
+•	Observe HPA scales up pods as memory usage exceeds 60%.
+2.	Free memory:
+~/DO180/labs/reliability-review/free.sh
+•	Observe HPA scales down pods once memory usage drops.
+________________________________________
+10. Lab Cleanup
+•	Grade work:
+lab grade reliability-review
+•	Finish exercise:
+lab finish reliability-review
+________________________________________
+Key Takeaways
+•	Memory requests must match application requirements for scheduling.
+•	Readiness probes prevent routing to pods that are still starting.
+•	Horizontal Pod Autoscaler (HPA) can scale pods automatically based on CPU or memory metrics.
+•	HPA scaling up is faster than scaling down.
+•	Load testing is essential to validate HPA behavior.
+
+
