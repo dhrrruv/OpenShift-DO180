@@ -1,0 +1,65 @@
+Guided Exercise: Reproducible Deployments with OpenShift Image Streams
+Objective
+Deploy an application using image streams to reference container images indirectly, ensuring reproducible deployments.
+Outcomes:
+•	Create an image stream and image stream tag.
+•	Deploy an application using the image stream tag.
+•	Confirm deployment uses the SHA ID of the container image.
+________________________________________
+Step 1: Prepare the Lab
+lab start updates-imagestreams
+•	Sets up resources for the exercise.
+•	Creates updates-imagestreams project.
+•	Generates resources.txt with image names and commands.
+________________________________________
+Step 2: Log in to OpenShift
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+oc project updates-imagestreams
+•	Logs in as developer.
+•	Sets the active project to updates-imagestreams.
+________________________________________
+Step 3: Create Image Stream
+oc create is versioned-hello
+•	Creates an image stream named versioned-hello.
+________________________________________
+Step 4: Create Image Stream Tag
+oc tag registry.ocp4.example.com:8443/redhattraining/versioned-hello:v1.0 versioned-hello:v1.0
+•	Creates the v1.0 tag in versioned-hello pointing to the source image.
+•	Ensures the tag references the image by SHA ID.
+________________________________________
+Step 5: Enable Image Stream Lookup
+oc set image-lookup versioned-hello
+oc set image-lookup
+•	Enables local lookup so Kubernetes workloads in the project can reference the image stream by short name.
+•	Verification:
+NAME             LOCAL
+versioned-hello  true
+________________________________________
+Step 6: Verify SHA ID
+oc describe is versioned-hello
+oc image info registry.ocp4.example.com:8443/redhattraining/versioned-hello:v1.0 | head
+•	Confirms the image stream tag references the SHA ID of the source image.
+•	Ensures deployment consistency even if the registry image is updated later.
+________________________________________
+Step 7: Create Deployment Using Image Stream Tag
+oc create deployment version --image versioned-hello:v1.0
+•	Deployment references image stream tag instead of a direct registry image.
+________________________________________
+Step 8: Verify Pod and Deployment
+oc get pods
+oc get deployment -o wide
+oc get pod <pod-name> -o jsonpath='{.spec.containers[0].image}{"\n"}'
+•	Confirms that both deployment and pod use the SHA ID of the image.
+•	Ensures reproducible deployment.
+________________________________________
+Step 9: Finish Lab
+lab finish updates-imagestreams
+•	Cleans up resources.
+•	Prevents interference with subsequent exercises.
+________________________________________
+✅ Key Takeaways
+1.	Image streams decouple deployments from registry image names.
+2.	SHA IDs ensure reproducibility of deployments.
+3.	Image stream lookup allows short names in deployments.
+4.	Image streams enable controlled updates and rollbacks.
+
