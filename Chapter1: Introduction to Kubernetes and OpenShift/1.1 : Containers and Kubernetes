@@ -1,0 +1,341 @@
+1. Containers and Kubernetes
+
+
+What is a Container
+A container is a lightweight package that includes:
+•	Application code
+•	Runtime
+•	Libraries
+•	Dependencies
+•	Configuration files
+This package can run anywhere where a container runtime exists.
+Simple Definition
+A container = application + dependencies packaged together so it runs consistently on any system.
+Example
+Suppose you build a Java web application.
+Normally you need:
+•	Java installed
+•	Libraries installed
+•	Correct OS configuration
+With containers:
+•	Everything is inside the container image
+•	You just run the container.
+________________________________________
+
+Container Image
+A container image is the blueprint used to create containers.
+Example images:
+•	nginx
+•	mysql
+•	ubuntu
+Command example (container runtime):
+podman run nginx
+or
+docker run nginx
+This command:
+•	pulls nginx image
+•	creates a container
+•	runs nginx server
+________________________________________
+Linux Technologies Used by Containers
+1. Namespaces
+Namespaces isolate processes.
+Each container has:
+•	its own filesystem
+•	its own network
+•	its own processes
+So containers cannot see each other.
+________________________________________
+2. Control Groups (cgroups)
+Used for resource management.
+Controls:
+•	CPU usage
+•	Memory usage
+•	Disk IO
+Example:
+Container can be limited to 500MB RAM.
+________________________________________
+Open Container Initiative (OCI)
+OCI defines standards for containers.
+It standardizes:
+•	container image format
+•	container runtime
+Because of OCI:
+•	container images run anywhere.
+Example runtimes:
+•	Podman
+•	Docker
+•	CRI-O
+•	containerd
+________________________________________
+2. Kubernetes Overview
+What is Kubernetes
+Kubernetes is a container orchestration platform.
+It automates:
+•	container deployment
+•	scaling
+•	networking
+•	monitoring
+•	management
+Simple definition
+Kubernetes manages containers across many servers automatically.
+________________________________________
+Why Kubernetes is Needed
+If you run containers manually:
+Problems:
+•	container crashes
+•	server failure
+•	scaling manually
+•	networking complexity
+Kubernetes solves these problems.
+________________________________________
+Kubernetes Cluster
+A cluster is a group of machines.
+Two types of nodes exist:
+1 Control Plane Nodes
+These manage the cluster.
+Responsibilities:
+•	scheduling
+•	cluster state
+•	API communication
+________________________________________
+2 Compute Nodes (Worker Nodes)
+These run applications.
+They execute:
+•	pods
+•	containers
+________________________________________
+Pod
+A Pod is the smallest unit in Kubernetes.
+Definition:
+A pod is one or more containers running together on the same node.
+Containers inside a pod:
+•	share network
+•	share storage
+Example:
+Pod:
+Pod
+ ├── container 1 (web server)
+ └── container 2 (logging agent)
+________________________________________
+3. Kubernetes Features
+1 Service Discovery and Load Balancing
+Pods have dynamic IP addresses.
+So Kubernetes provides Services.
+Service:
+•	stable IP
+•	stable DNS name
+•	load balancing
+Example:
+frontend-service → multiple frontend pods
+Traffic automatically distributed.
+Command example:
+kubectl get svc
+or in OpenShift
+oc get svc
+________________________________________
+2 Horizontal Scaling
+Kubernetes can automatically:
+•	increase pods
+•	decrease pods
+Example:
+Traffic increases → create more pods.
+Traffic decreases → remove pods.
+Command example:
+kubectl scale deployment nginx --replicas=5
+This creates 5 pods.
+________________________________________
+3 Self Healing
+Kubernetes automatically:
+•	restarts crashed containers
+•	replaces failed pods
+•	reschedules pods if node fails
+Example:
+Pod crashes →
+Kubernetes automatically creates new pod.
+________________________________________
+4 Automated Rollout (Updates)
+Kubernetes supports rolling updates.
+Example:
+Update application version:
+Old pods replaced gradually with new pods.
+If update fails → rollback.
+Command example:
+kubectl rollout status deployment/nginx
+Rollback:
+kubectl rollout undo deployment/nginx
+________________________________________
+5 Secrets and Configuration Management
+Applications need configuration such as:
+•	database password
+•	API keys
+•	environment variables
+Kubernetes provides:
+ConfigMap
+For normal configuration.
+Secret
+For sensitive data.
+Example command:
+Create secret:
+kubectl create secret generic db-pass --from-literal=password=1234
+Important:
+Kubernetes does NOT encrypt secrets by default.
+________________________________________
+6 Operators
+Operators are automated applications that manage complex systems.
+Example:
+Database deployment requires:
+•	replication
+•	backup
+•	scaling
+•	failover
+Operator automates everything.
+Example:
+PostgreSQL Operator automatically:
+•	installs database
+•	configures replication
+•	manages backup
+________________________________________
+4. Kubernetes Architecture
+Cluster contains nodes (servers).
+Nodes can be:
+•	physical servers
+•	virtual machines
+•	cloud instances
+________________________________________
+Control Plane Components
+Control plane manages cluster.
+Important components:
+API Server
+Main interface of Kubernetes.
+All commands go through it.
+Example:
+kubectl create pod
+This request goes to API server.
+________________________________________
+Scheduler
+Decides which node runs a pod.
+Example:
+Pod requires:
+•	2 CPU
+•	2GB RAM
+Scheduler chooses node with available resources.
+________________________________________
+Controller Manager
+Controllers ensure cluster state.
+Example:
+If deployment requires 3 pods
+Controller ensures 3 pods always run.
+________________________________________
+Compute Node Components
+Worker nodes run applications.
+Components:
+Kubelet
+Agent running on node.
+Responsibilities:
+•	communicate with API server
+•	run containers
+________________________________________
+Container Runtime
+Software that runs containers.
+Examples:
+•	CRI-O
+•	containerd
+•	Podman
+________________________________________
+5. Kubernetes API and Resource Model
+Kubernetes works with resources.
+Examples of resources:
+•	Pod
+•	Service
+•	Deployment
+•	ConfigMap
+•	Secret
+All resources use same API.
+________________________________________
+kubectl / oc Commands
+Two CLI tools exist.
+Kubernetes
+kubectl
+Example:
+kubectl get pods
+________________________________________
+OpenShift
+oc
+Example:
+oc get pods
+OpenShift uses Kubernetes internally but provides extra tools.
+________________________________________
+6. Declarative Resource Management
+Kubernetes follows declarative configuration.
+Instead of giving step-by-step commands, you define desired state.
+Example YAML file:
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+Create pod:
+kubectl apply -f pod.yaml
+Kubernetes ensures pod exists.
+________________________________________
+Controllers Maintain Desired State
+Controllers continuously check cluster state.
+Example:
+Desired state:
+replicas: 3
+If one pod crashes →
+Controller creates new pod automatically.
+________________________________________
+7. Namespaces
+Namespaces are used to organize resources in a cluster.
+Example:
+Different teams can use different namespaces.
+Example namespaces:
+•	dev
+•	testing
+•	production
+Command:
+List namespaces:
+kubectl get namespaces
+Create namespace:
+kubectl create namespace dev
+Create pod inside namespace:
+kubectl run nginx --image=nginx -n dev
+________________________________________
+Quick Exam Revision Summary
+Containers
+•	Package applications with dependencies
+•	Use namespaces and cgroups
+Kubernetes
+•	Manages containerized applications
+•	Runs containers across cluster nodes
+Pod
+•	Smallest deployable unit
+•	Contains one or more containers
+Cluster
+•	Control plane nodes
+•	Compute (worker) nodes
+Features
+•	Service discovery
+•	Load balancing
+•	Auto scaling
+•	Self healing
+•	Rolling updates
+•	Secrets management
+Architecture
+•	API server
+•	Scheduler
+•	Controller manager
+•	Worker nodes
+•	kubelet
+•	container runtime
+Configuration
+•	YAML manifests
+•	Declarative resource management
+Namespaces
+•	logical cluster separation
+•	resource organization
