@@ -1,0 +1,63 @@
+Lab: Manage Application Updates
+Objective
+•	Update two live applications to use specific image versions rather than floating tags.
+•	Configure image triggers so OpenShift automatically rolls out updates when image stream tags change.
+________________________________________
+1. Prepare Lab Environment
+lab start updates-review
+•	Sets up updates-review project.
+•	Deploys two apps: app1 and app2.
+•	Prepares resources.txt with image details.
+Login and set project:
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+oc project updates-review
+________________________________________
+2. Update app1 Deployment to Use a Static Image Tag
+•	Current deployment uses floating latest tag.
+Check deployment:
+oc get deployment/app1 -o wide
+Update image to static tag 1-222:
+oc set image deployment/app1 \
+  php-ssl=registry.ocp4.example.com:8443/redhattraining/php-ssl:1-222
+Verify:
+oc get deployment/app1 -o wide
+•	app1 now uses php-ssl:1-222.
+________________________________________
+3. Configure app2 Deployment for Image Trigger
+•	app2 uses php-ssl:1 tag (alias for 1-222).
+•	Enable automatic rollout whenever php-ssl:1 changes.
+Retrieve container name:
+oc get deployment/app2 -o wide
+Add image trigger:
+oc set triggers deployment/app2 \
+  --from-image php-ssl:1 --containers php-ssl
+Verify triggers:
+oc set triggers deployment/app2
+Output shows image php-ssl:1 (php-ssl) with AUTO = true.
+________________________________________
+4. Deploy New Image Version for app2
+•	New tested image: php-ssl:1-234.
+Create new image stream tag:
+oc create istag php-ssl:1-234 \
+  --from-image registry.ocp4.example.com:8443/redhattraining/php-ssl:1-234
+Move alias php-ssl:1 to point to the new tag:
+oc tag --alias php-ssl:1-234 php-ssl:1
+Verify app2 rollout:
+oc describe deployment/app2
+•	Old replica set scales down.
+•	New replica set scales up automatically.
+________________________________________
+5. Finish Lab
+Grade and clean up:
+lab grade updates-review
+lab finish updates-review
+________________________________________
+Key Concepts
+1.	Static image tags prevent accidental redeployment of untested images.
+2.	Image triggers enable automatic rolling updates when image stream tags change.
+3.	Aliases allow floating tags (like php-ssl:1) to point to specific versioned tags (like 1-222 or 1-234) safely.
+4.	Rolling update workflow:
+o	Old pods coexist with new pods during rollout.
+o	Replica sets scale up/down automatically.
+5.	Reproducible deployments: SHA IDs or static tags ensure consistent images are used.
+
