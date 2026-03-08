@@ -1,0 +1,291 @@
+Create Linux Containers and Kubernetes Pods
+Objectives
+Run containers inside pods and identify the host OS processes and namespaces that the containers use.
+
+1. Running Containers in Pods
+In Kubernetes and Red Hat OpenShift, applications run inside containers, and containers run inside pods.
+•	Container Image → Immutable package containing application + dependencies.
+•	Pod → Smallest deployable unit in Kubernetes.
+Example flow:
+Container Image → Container → Pod → Node
+To create a pod quickly (for testing/debugging), use:
+oc run RESOURCE/NAME --image IMAGE
+Example:
+oc run web-server --image registry.access.redhat.com/ubi10/httpd-24
+Explanation:
+Part	Meaning
+oc	OpenShift CLI
+run	create pod
+web-server	pod name
+--image	container image
+This command creates a pod with one container running Apache HTTP server.
+⚠️ For production, use YAML manifests like Deployments instead of oc run.
+________________________________________
+2. Running Custom Commands in Containers
+Normally, a container runs the default command from the image.
+But you can override it using:
+--command --
+Syntax:
+oc run NAME --image IMAGE --command -- cmd arg1 arg2
+Example:
+oc run my-app --image registry.access.redhat.com/ubi10/ubi \
+--command -- date
+Result → Container runs date command instead of default program.
+________________________________________
+3. Passing Arguments to Default Command
+If you want to keep default command but add arguments, use:
+oc run NAME --image IMAGE -- arg1 arg2
+Example:
+oc run app --image nginx -- -g "daemon off;"
+Here:
+•	nginx command stays default
+•	arguments are added.
+________________________________________
+4. Interactive Container Shell
+To open terminal inside container:
+oc run -it my-app --image registry.access.redhat.com/ubi10/ubi \
+--command -- /bin/bash
+Options explanation:
+Option	Meaning
+-i	keep stdin open
+-t	allocate terminal
+-it	interactive shell
+Output:
+bash-5.1$
+Now you are inside the container shell.
+________________________________________
+5. Pod Restart Policy
+Restart policy decides what happens if container stops.
+Command:
+--restart POLICY
+Policies:
+Policy	Meaning
+Always	restart every time (default)
+OnFailure	restart only if error
+Never	never restart
+Example:
+oc run my-app --image ubi --restart Never --command -- date
+Here pod runs date once and stops.
+________________________________________
+6. Automatically Delete Pod
+To remove pod automatically after execution:
+--rm
+Example:
+oc run -it my-app --rm --image ubi --restart Never --command -- date
+Result:
+pod deleted after execution
+Useful for temporary debugging containers.
+________________________________________
+7. Setting Environment Variables
+Some applications require environment variables.
+Command:
+--env KEY=VALUE
+Example:
+oc run mysql --image registry.redhat.io/rhel9/mysql-80 \
+--env MYSQL_ROOT_PASSWORD=myP@$$123
+This sets MySQL root password.
+________________________________________
+8. User IDs and Security in OpenShift
+OpenShift uses random UID assignment for security.
+Check project UID range:
+oc describe project my-app
+Example output:
+uid-range=1000710000/10000
+Meaning:
+Value	Meaning
+1000710000	starting UID
+10000	size of range
+So containers get UID between:
+1000710000 → 1000719999
+Important rules:
+•	Containers run as non-root user
+•	Primary group = root group (GID 0)
+•	Files must have group write permission
+Why?
+Security.
+If container runs as root:
+•	Can modify host OS
+•	Can install software
+•	Can delete system files
+So OpenShift enforces rootless containers.
+________________________________________
+9. Pod Security
+Kubernetes uses Pod Security Admission (PSA).
+Profiles:
+Profile	Security level
+privileged	full permissions
+baseline	moderate security
+restricted	most secure
+OpenShift also uses SCC (Security Context Constraints) to enforce security.
+Security Context controls:
+•	user ID
+•	capabilities
+•	privileges
+________________________________________
+10. Execute Command Inside Running Container
+To run a command in a running pod:
+oc exec POD_NAME -- COMMAND
+Example:
+oc exec my-app -- date
+Output:
+Tue Feb 21 20:43:53 UTC
+________________________________________
+For Multi-Container Pods
+Specify container:
+oc exec POD -c CONTAINER -- COMMAND
+Example:
+oc exec my-app -c ruby-container -- date
+________________________________________
+Interactive Terminal Inside Running Container
+oc exec my-app -it -- bash
+Options:
+Option	Meaning
+-i	interactive
+-t	terminal
+Exit:
+exit
+________________________________________
+11. Container Logs
+Containers send logs to:
+stdout
+stderr
+Retrieve logs:
+oc logs POD_NAME
+Example:
+oc logs postgresql-1-jw89j
+________________________________________
+Important options:
+Option	Meaning
+--tail=10	last 10 log lines
+-f	follow logs (live streaming)
+-c container	logs of specific container
+-p	previous container logs
+Example:
+oc logs postgresql --tail=10
+________________________________________
+12. Attach to Running Container
+Attach terminal to running container:
+oc attach POD_NAME -it
+Example:
+oc attach my-app -it
+This connects to container’s terminal.
+________________________________________
+13. Deleting Kubernetes Resources
+Delete pod:
+oc delete pod POD_NAME
+Example:
+oc delete pod php-app
+________________________________________
+Delete using label:
+oc delete pod -l app=my-app
+Delete using YAML file:
+oc delete -f file.yaml
+________________________________________
+14. Pod Graceful Termination
+Pods shutdown gracefully.
+Default behaviour:
+1.	Pod receives SIGTERM
+2.	Waits for process to stop
+3.	Then kills container.
+Change time:
+oc delete pod php-app --grace-period=10
+Force immediate delete:
+oc delete pod php-app --now
+Force delete (dangerous):
+oc delete pod php-app --force
+⚠️ May cause data loss.
+________________________________________
+15. CRI-O Container Engine
+OpenShift uses CRI-O as container runtime.
+Container runtime responsibilities:
+•	run containers
+•	manage images
+•	manage container processes
+Unlike Docker/Podman, CRI-O is built specifically for Kubernetes.
+________________________________________
+16. crictl Command
+crictl is CLI for container runtime.
+Common commands:
+Command	Purpose
+crictl pods	list pods
+crictl ps	running containers
+crictl images	images
+crictl inspect	container details
+crictl logs	container logs
+crictl exec	run command
+________________________________________
+17. Find Pod Node
+First identify node where pod runs:
+oc get pods -o wide
+Example output:
+postgresql-1  Running  master01
+Get node name:
+oc get pod POD_NAME -o jsonpath='{.spec.nodeName}'
+________________________________________
+18. Debug Node
+Cluster admins can debug nodes:
+oc debug node/master01
+Then access host binaries:
+chroot /host
+Now host tools are accessible.
+________________________________________
+19. Find Container ID
+crictl ps --name postgresql
+Example:
+CONTAINER ID   NAME
+27943ae4f3024  postgresql
+________________________________________
+20. Get Container PID
+crictl inspect CONTAINER_ID
+Example:
+crictl inspect 27943ae4f3024 | grep pid
+Output:
+pid: 43453
+________________________________________
+21. List Container Namespaces
+Use Linux command:
+lsns -p PID
+Example:
+lsns -p 43453
+Shows namespaces:
+•	PID namespace
+•	network namespace
+•	mount namespace
+•	IPC namespace
+•	UTS namespace
+These isolate container from host.
+________________________________________
+22. Enter Container Namespace
+Use:
+nsenter
+Example:
+nsenter -t 43453 -p -r ps -ef
+Options:
+Option	Meaning
+-t	target PID
+-p	process namespace
+-r	root filesystem
+Execute in all namespaces:
+nsenter -t 43453 -a ps -ef
+________________________________________
+Quick Exam Revision Summary
+Important commands:
+oc run
+oc exec
+oc logs
+oc attach
+oc delete
+oc debug
+crictl ps
+crictl inspect
+lsns
+nsenter
+Important concepts:
+•	Pod = smallest deployable unit
+•	Containers run inside pods
+•	OpenShift assigns random UID
+•	Restart policies control container restart
+•	Logs stored in stdout/stderr
+•	CRI-O is container runtime
+•	Namespaces isolate containers
+
