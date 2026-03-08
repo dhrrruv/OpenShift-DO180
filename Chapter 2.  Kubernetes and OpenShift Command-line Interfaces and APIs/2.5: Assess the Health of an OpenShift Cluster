@@ -1,0 +1,287 @@
+Assess the Health of an OpenShift Cluster (Simplified Guide)
+Cluster health is checked by inspecting:
+1️⃣ Operators
+2️⃣ Pods and namespaces
+3️⃣ Resource usage (CPU/Memory)
+4️⃣ Cluster events and alerts
+5️⃣ Node status
+6️⃣ Logs and debugging tools
+________________________________________
+1️⃣ Check Cluster Operators
+Operators manage and maintain cluster services automatically.
+Examples of operators:
+•	authentication
+•	console
+•	dns
+•	kube-apiserver
+•	ingress
+•	monitoring
+These are core OpenShift components.
+List cluster operators
+oc get clusteroperators
+Example output:
+NAME            VERSION   AVAILABLE   PROGRESSING   DEGRADED
+authentication  4.18.6    True        False         False
+console         4.18.6    True        False         False
+dns             4.18.6    True        False         False
+Meaning
+Column	Meaning
+AVAILABLE	Operator is working
+PROGRESSING	Operator is updating
+DEGRADED	Operator has problems
+Healthy operator state:
+AVAILABLE = True
+PROGRESSING = False
+DEGRADED = False
+________________________________________
+2️⃣ Inspect an Operator
+Example: DNS operator
+oc describe clusteroperator dns
+For structured output:
+oc get clusteroperator dns -o yaml
+Example YAML part:
+status:
+  conditions:
+  - type: Available
+    status: True
+    message: DNS "default" is available
+________________________________________
+3️⃣ Operator Lifecycle Manager (OLM)
+OLM manages optional add-on operators.
+Example:
+•	storage operator
+•	MetalLB operator
+List installed operators
+oc get operators
+Example:
+NAME
+lvms-operator.openshift-storage
+metallb-operator.metallb-system
+________________________________________
+4️⃣ Find Pods Used by Operators
+Operators run pods inside namespaces.
+Example:
+oc get pods -n openshift-dns-operator
+Output:
+dns-operator-74bb989655-vgm7t
+________________________________________
+5️⃣ Inspect Pod Status
+oc get pod dns-operator-74bb989655-vgm7t -o json | jq .status
+Shows:
+•	readiness
+•	container status
+•	health conditions
+Example condition:
+type: Ready
+status: True
+Meaning: Pod is healthy.
+________________________________________
+6️⃣ Show Pod Labels
+Labels help identify resources.
+oc get pods -n openshift-etcd --show-labels
+Example:
+NAME           STATUS   LABELS
+etcd-master01  Running  app=etcd,k8s-app=etcd
+________________________________________
+7️⃣ Check Cluster Resource Usage
+Use:
+oc adm top pods
+For all namespaces:
+oc adm top pods -A --sum
+Example:
+CPU(cores)  MEMORY(bytes)
+3121m       9123Mi
+________________________________________
+8️⃣ Check Container Usage
+Example:
+oc adm top pods etcd-master01 -n openshift-etcd --containers
+Output:
+NAME           CPU     MEMORY
+etcd           72m     334Mi
+etcd-metrics   8m      31Mi
+This helps detect:
+•	memory leaks
+•	CPU spikes
+•	overloaded containers
+________________________________________
+9️⃣ View Cluster Metrics (Web Console)
+OpenShift Web Console:
+Home → Overview
+Shows:
+•	CPU usage
+•	Memory usage
+•	Storage usage
+•	Top resource consumers
+________________________________________
+🔟 View Project Metrics
+Project page:
+Workloads → Pods
+Shows:
+•	CPU
+•	memory
+•	storage usage
+Useful for troubleshooting application problems.
+________________________________________
+11️⃣ Query Prometheus Metrics
+Go to:
+Observe → Metrics
+Run Prometheus queries to monitor cluster.
+Example metrics:
+•	CPU usage
+•	memory usage
+•	network traffic
+________________________________________
+12️⃣ Check Cluster Events
+Events show important actions in the cluster.
+Example:
+oc get events
+All namespaces:
+oc get events -A
+Sort by time:
+oc get events --sort-by .metadata.creationTimestamp
+Example output:
+Normal   Scheduled   Pod scheduled to node
+Warning  Failed      Container failed to start
+________________________________________
+13️⃣ View Monitoring Stack
+Monitoring runs in namespace:
+openshift-monitoring
+Check monitoring components:
+oc get all -n openshift-monitoring
+Example:
+prometheus-k8s-0
+alertmanager-main-0
+cluster-monitoring-operator
+________________________________________
+14️⃣ Query Prometheus Alerts
+Example command:
+oc -n openshift-monitoring exec -c prometheus prometheus-k8s-0 \
+-- curl -s http://localhost:9090/api/v1/alerts | jq
+This retrieves:
+•	active alerts
+•	monitoring warnings
+________________________________________
+15️⃣ Query Alertmanager Alerts
+oc -n openshift-monitoring exec -c alertmanager alertmanager-main-0 \
+-- curl -s http://localhost:9093/api/v2/alerts | jq
+Alertmanager sends alerts to:
+•	email
+•	Slack
+•	PagerDuty
+________________________________________
+16️⃣ Check Node Status
+List cluster nodes:
+oc get nodes
+Example:
+NAME       STATUS   ROLES
+master01   Ready    control-plane
+Status meanings
+Status	Meaning
+Ready	Node healthy
+NotReady	Node problem
+________________________________________
+17️⃣ Inspect Node Details
+oc describe node master01
+Shows:
+•	conditions
+•	capacity
+•	resources
+•	kubelet status
+________________________________________
+18️⃣ Check Node Resources
+Example:
+oc get node master01 -o jsonpath='
+{.status.allocatable}
+'
+Example:
+cpu: 5500m
+memory: 15225452Ki
+pods: 250
+________________________________________
+19️⃣ Check Node Health Conditions
+Example command:
+oc get node master01 -o json | jq '.status.conditions'
+Possible conditions:
+Condition	Meaning
+MemoryPressure	Low memory
+DiskPressure	Disk almost full
+PIDPressure	Too many processes
+Ready	Node operational
+Example healthy state:
+MemoryPressure = False
+DiskPressure = False
+PIDPressure = False
+Ready = True
+________________________________________
+20️⃣ View Node Logs
+Cluster admins can view logs:
+oc adm node-logs master01
+Filter examples:
+kubelet logs
+oc adm node-logs master01 -u kubelet
+CRI-O logs
+oc adm node-logs master01 -u crio
+last log line
+oc adm node-logs master01 -u crio --tail 1
+________________________________________
+21️⃣ Debug a Node
+Start debug session:
+oc debug node/master01
+Enter host filesystem:
+chroot /host
+Check services:
+systemctl is-active kubelet
+systemctl is-active crio
+Healthy result:
+active
+________________________________________
+22️⃣ View Pod Logs
+oc logs pod-name
+Example:
+oc logs myapp-54fcdcd9d7
+For multi-container pods:
+oc logs pod-name -c container-name
+________________________________________
+23️⃣ Debug a Pod
+If pod fails:
+oc debug pod/myapp
+Debug command:
+•	creates temporary pod
+•	starts shell
+•	disables probes
+________________________________________
+24️⃣ Debug as Root or Non-root
+Run as non-root:
+oc debug job/test --as-user=1000000
+Run as root:
+oc debug pod/myapp --as-root
+________________________________________
+25️⃣ Collect Support Data
+For Red Hat support cases.
+Run:
+oc adm must-gather
+Output directory:
+must-gather.local/
+Compress it:
+tar cvaf mustgather.tar must-gather/
+Send to Red Hat support.
+________________________________________
+26️⃣ Inspect Specific Resources
+Example:
+oc adm inspect clusteroperator/kube-apiserver
+Limit logs:
+oc adm inspect clusteroperator/kube-apiserver --since 10m
+________________________________________
+⭐ Most Important Commands for DO180 Exam
+Command	Purpose
+oc get clusteroperators	check cluster operators
+oc describe clusteroperator	operator details
+oc adm top pods	CPU/memory usage
+oc get events	cluster events
+oc get nodes	node health
+oc describe node	node details
+oc logs	container logs
+oc debug	debug pod/node
+oc adm node-logs	node logs
+oc adm must-gather	collect support data
+
