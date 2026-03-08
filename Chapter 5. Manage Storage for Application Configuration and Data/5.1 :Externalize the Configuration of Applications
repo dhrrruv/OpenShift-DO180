@@ -1,0 +1,301 @@
+Externalize the Configuration of Applications
+Objectives
+Configure applications by using Kubernetes secrets and configuration maps to initialize environment variables and to provide text and binary configuration files.
+
+Externalizing Application Configuration (Kubernetes)
+1. What is Externalized Configuration?
+In Kubernetes, applications run inside containers using images.
+These images usually contain default configuration.
+But in production, we often need to change configuration such as:
+•	Database name
+•	Database username
+•	Passwords
+•	API keys
+•	Configuration files
+Instead of modifying the container image every time, Kubernetes allows external configuration using:
+1.	ConfigMaps → for normal configuration data
+2.	Secrets → for sensitive data
+This concept is called Configuration Externalization.
+It makes applications:
+•	Portable
+•	Easy to manage
+•	Secure
+•	Environment independent
+________________________________________
+2. Deployment Configuration (YAML Example)
+Example deployment snippet:
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello-deployment
+  template:
+    metadata:
+      labels:
+        app: hello-deployment
+    spec:
+      containers:
+      - image: quay.io/hello-image:latest
+        env:
+        - name: ENV_VARIABLE_1
+          valueFrom:
+            secretKeyRef:
+              name: world
+              key: hello
+Explanation
+Field	Meaning
+apiVersion	Kubernetes API version
+kind	Resource type (Deployment)
+metadata	Resource name and labels
+spec	Desired configuration
+replicas	Number of pods
+selector	Label selector
+template	Pod configuration
+containers	Container details
+env	Environment variables
+Here the environment variable is taken from a Secret.
+________________________________________
+3. ConfigMap (Configuration Map)
+What is ConfigMap?
+A ConfigMap stores non-sensitive configuration data as key-value pairs.
+Used for:
+•	Application settings
+•	Configuration files
+•	Environment variables
+•	JSON configs
+ConfigMaps help keep containers platform-independent.
+________________________________________
+Example ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: example-configmap
+  namespace: my-app
+data:
+  example.property.1: hello
+  example.property.2: world
+  example.property.file: |
+    property.1=value-1
+    property.2=value-2
+Sections
+Section	Meaning
+kind	ConfigMap resource
+metadata	name and namespace
+data	configuration values
+________________________________________
+binaryData
+Used when storing binary files.
+Example:
+binaryData:
+  bar: R0lGODlhAgACAIABAO4AAP///
+This is Base64 encoded binary data.
+________________________________________
+4. Secrets
+What is a Secret?
+A Secret stores sensitive information.
+Examples:
+•	Passwords
+•	API tokens
+•	Database credentials
+•	SSH keys
+•	TLS certificates
+Secrets are Base64 encoded (not encrypted by default).
+________________________________________
+Example Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: example-secret
+type: Opaque
+data:
+  username: bXl1c2VyCg==
+  password: bXlQQDU1Cg==
+Base64 decode example
+echo bXl1c2VyCg== | base64 --decode
+Output
+myuser
+________________________________________
+5. Types of Secrets
+Secret Type	Use
+Opaque	Default secret (key-value)
+Service Account Token	API authentication
+Basic Authentication	username/password
+SSH Keys	SSH login
+TLS Certificates	HTTPS security
+Docker Config	Image registry authentication
+________________________________________
+6. Creating Secrets (Commands)
+Create secret from literals
+oc create secret generic secret_name \
+--from-literal key1=value1 \
+--from-literal key2=value2
+Example
+oc create secret generic db-secret \
+--from-literal username=admin \
+--from-literal password=pass123
+________________________________________
+Create secret from files
+kubectl create secret generic ssh-keys \
+--from-file id_rsa=/path/id_rsa \
+--from-file id_rsa.pub=/path/id_rsa.pub
+________________________________________
+Create TLS secret
+oc create secret tls secret-tls \
+--cert cert.crt \
+--key key.pem
+Used for HTTPS certificates.
+________________________________________
+7. Creating ConfigMaps
+Using literals
+kubectl create configmap my-config \
+--from-literal key1=value1 \
+--from-literal key2=value2
+OpenShift shortcut:
+oc create cm my-config \
+--from-literal key1=value1
+________________________________________
+Creating from file
+oc create configmap demo-map \
+--from-file=httpd.conf
+The file content becomes the value.
+________________________________________
+8. Using ConfigMaps as Environment Variables
+Example Pod:
+env:
+- name: MYSQL_DATABASE
+  valueFrom:
+    configMapKeyRef:
+      name: config-map-example
+      key: database.name
+Explanation:
+Field	Meaning
+env	environment variables
+configMapKeyRef	reference ConfigMap
+name	ConfigMap name
+key	key inside ConfigMap
+________________________________________
+Load all variables from ConfigMap
+envFrom:
+- configMapRef:
+    name: config-map-example
+This loads all keys as environment variables.
+________________________________________
+9. Using Secrets as Environment Variables
+Example:
+env:
+- name: TEST_SECRET_USERNAME
+  valueFrom:
+    secretKeyRef:
+      name: test-secret
+      key: username
+Explanation:
+Field	Meaning
+secretKeyRef	reference secret
+name	secret name
+key	value inside secret
+________________________________________
+10. Mounting Secrets as Volumes
+Instead of environment variables, secrets can be mounted as files.
+Command:
+oc set volume deployment/demo \
+--add \
+--type secret \
+--secret-name demo-secret \
+--mount-path /app-secrets
+Result inside container:
+/app-secrets/user
+/app-secrets/root_password
+Each key becomes a file.
+________________________________________
+11. Mounting ConfigMap as Volume
+oc set volume deployment/demo \
+--add \
+--type configmap \
+--configmap-name demo-map \
+--mount-path /app-config
+Now configuration files appear in:
+/app-config/
+________________________________________
+12. Setting Environment Variables from Secrets
+Command:
+oc set env deployment/demo \
+--from secret/demo-secret \
+--prefix MYSQL_
+Example:
+Secret:
+user
+root_password
+Environment variables created:
+MYSQL_USER
+MYSQL_ROOT_PASSWORD
+________________________________________
+13. Updating Secrets or ConfigMaps
+Step 1 — Extract data
+oc extract secret/demo-secret \
+--to /tmp/demo \
+--confirm
+Step 2 — Edit file
+nano /tmp/demo/root_password
+Step 3 — Update secret
+oc set data secret/demo-secret \
+--from-file /tmp/demo/root_password
+________________________________________
+14. Important Behavior
+When updates happen
+Method	Restart Required
+Environment variables	Yes
+Volume mount	No (auto updated)
+Kubelet automatically updates mounted volumes.
+________________________________________
+15. Deleting Secrets and ConfigMaps
+Delete secret:
+kubectl delete secret/demo-secret
+Delete configmap:
+oc delete configmap/demo-map
+________________________________________
+16. Quick Comparison
+Feature	ConfigMap	Secret
+Purpose	Non-sensitive config	Sensitive data
+Storage	Plain text	Base64 encoded
+Examples	app configs	passwords
+Security	low	restricted
+________________________________________
+17. Real Production Example
+Web application needs:
+Database credentials.
+Solution:
+Secret
+username
+password
+ConfigMap
+database_name
+database_host
+Pod reads them via:
+•	environment variables
+•	mounted files
+________________________________________
+Final Concept (Exam Summary)
+Application configuration in Kubernetes is externalized using:
+1️⃣ ConfigMaps
+•	Store non-sensitive configuration
+•	Used for environment variables or config files
+2️⃣ Secrets
+•	Store sensitive information
+•	Base64 encoded
+•	Used for passwords, tokens, certificates
+Both can be consumed by pods using:
+•	Environment variables
+•	Volume mounts
+Commands used:
+kubectl create configmap
+oc create cm
+oc create secret
+oc set env
+oc set volume
+oc extract
+oc set data
+
