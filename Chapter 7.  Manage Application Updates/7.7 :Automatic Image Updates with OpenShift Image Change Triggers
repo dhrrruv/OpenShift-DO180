@@ -1,0 +1,67 @@
+Automatic Image Updates with OpenShift Image Change Triggers
+Objective
+Enable automatic updates of application pods by using image streams and image change triggers in OpenShift.
+________________________________________
+1. Image Stream Tags & Deployment Triggers
+•	Image stream tags always point to an immutable SHA ID.
+•	Updating a tag to a new image does not automatically update deployments.
+•	To enable automatic rollout, configure the Deployment object with an image trigger.
+•	Image triggers apply at the container level in a Deployment.
+________________________________________
+2. Configure Image Triggers for Deployment
+Prerequisites
+1.	Deployment uses image stream tags.
+2.	Image stream in the same project.
+3.	Local lookup enabled:
+oc set image-lookup keycloak
+4.	Deployment references image stream tag names (e.g., keycloak:20).
+Steps
+1.	Retrieve container names:
+oc get deployment mykeycloak -o wide
+2.	Add image trigger to container:
+oc set triggers deployment/mykeycloak --from-image keycloak:20 --containers keycloak
+3.	Verify trigger:
+oc set triggers deployment/mykeycloak
+•	AUTO=true indicates the trigger is active.
+•	Stored in image.openshift.io/triggers annotation.
+Manage Triggers
+•	Disable:
+oc set triggers deployment/mykeycloak --manual --from-image keycloak:20 --containers keycloak
+•	Re-enable:
+oc set triggers deployment/mykeycloak --auto --from-image keycloak:20 --containers keycloak
+•	Remove all triggers:
+oc set triggers deployment/mykeycloak --remove-all
+________________________________________
+3. Rolling Out Deployments
+•	Deployment automatically updates when image stream tag changes.
+•	Image stream tag can change:
+o	Manually (oc tag or oc import-image).
+o	Automatically with --scheduled refresh.
+________________________________________
+4. Managing Image Stream Tags
+Create / Update Tags
+1.	Initial creation:
+oc create istag keycloak:20.0.2 --from-image quay.io/keycloak/keycloak:20.0.2
+oc import-image keycloak:20.0.2 --from quay.io/keycloak/keycloak:20.0.2 --confirm
+oc tag quay.io/keycloak/keycloak:20.0.2 keycloak:20.0.2
+2.	Create alias tag:
+oc tag --alias keycloak:20.0.2 keycloak:20
+•	keycloak:20 is an alias → floating tag.
+•	Deployment uses alias to track latest tested image.
+Update to New Image
+1.	Add new version:
+oc create istag keycloak:20.0.3 --from-image quay.io/keycloak/keycloak:20.0.3
+2.	Move alias to new version:
+oc tag --alias keycloak:20.0.3 keycloak:20
+•	Triggers automatic rollout for all Deployments using keycloak:20.
+Rollback
+oc tag --alias keycloak:20.0.2 keycloak:20
+•	Resets Deployment to previous version.
+________________________________________
+5. Key Takeaways
+1.	Image streams + triggers provide controlled, automatic application updates.
+2.	SHA IDs ensure reproducibility.
+3.	Aliases (floating tags) let you safely test and promote new versions.
+4.	Rollback is simple by reassigning the alias to the previous image stream tag.
+5.	Works for Deployments, Jobs, CronJobs, Pods.
+
