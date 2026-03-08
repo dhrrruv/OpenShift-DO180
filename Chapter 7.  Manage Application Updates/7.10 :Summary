@@ -1,0 +1,30 @@
+Summary
+Key Concepts
+1. Image References
+•	Tags: Human-readable labels assigned by image developers (e.g., v1.0, latest).
+•	SHA IDs: Immutable identifiers automatically computed by the registry. Always uniquely identifies an image.
+2. Deployment Image Management
+•	imagePullPolicy: Specifies how pods pull images from the registry:
+o	Always – pull every time the pod starts.
+o	IfNotPresent – pull only if not already on node.
+o	Never – never pull, use local image.
+•	Deployment strategies determine how updates affect running applications:
+o	RollingUpdate: Gradually replaces old pods with new ones.
+o	Recreate: Terminates all old pods before starting new ones.
+3. OpenShift Image Streams
+•	Provide stable references to images.
+•	Image streams exist within a project.
+•	Local lookup policy must be enabled to let Kubernetes workloads resolve images using image stream tags.
+4. Workload Integration
+•	Kubernetes resources like Deployments, Jobs, and CronJobs can use image streams.
+•	Image streams decouple workloads from registry-specific image names, improving reproducibility.
+5. Automatic Updates
+•	Image triggers can be configured in deployments:
+o	Automatically roll out new pods when an image stream tag is updated.
+o	Works with versioned tags and aliases.
+o	Allows safe rollback by reverting the image stream tag.
+6. Benefits
+•	Ensures reproducible deployments.
+•	Enables controlled rollouts and automatic updates.
+•	Provides flexibility in pointing multiple workloads to the same image via tags or aliases.
+
