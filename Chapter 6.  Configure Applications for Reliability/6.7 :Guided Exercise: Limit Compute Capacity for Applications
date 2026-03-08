@@ -1,0 +1,66 @@
+Guided Exercise: Limit Compute Capacity for Applications
+Objective
+•	Learn how to set memory limits on pods to prevent a buggy application from consuming all node memory.
+•	Observe how OpenShift handles pods that exceed memory limits (OOMKilled → pod restart → CrashLoopBackOff).
+•	Use monitoring commands to track memory usage and pod status.
+________________________________________
+2. Key Concepts
+Memory Limits
+•	Requests → minimum memory for scheduling.
+•	Limits → maximum memory a pod can consume.
+•	Exceeding limit → Linux OOM killer kills the container process.
+•	OpenShift restarts pods automatically (CrashLoopBackOff if repeated).
+•	Useful for mitigating memory leaks or buggy applications.
+CrashLoopBackOff
+•	Occurs when a pod repeatedly crashes.
+•	OpenShift adds increasing wait times between restarts.
+•	Protects the cluster from continuously failing pods.
+________________________________________
+3. Steps in the Exercise
+a. Setup
+lab start reliability-limits
+
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+oc project reliability-limits
+b. Create Deployment
+•	leakapp has a memory leak of 1 MiB/sec.
+•	Initial memory request: 20Mi, limit: 35Mi.
+oc apply -f ~/DO180/labs/reliability-limits/leakapp.yml
+oc get pods
+c. Observe Pod Restart due to OOM
+watch oc get pods
+# Pod restarts every ~30s
+Check OOM reason:
+oc get pods <pod-name> -o jsonpath='{.status.containerStatuses[0].lastState}' | jq .
+# exitCode: 137, reason: "OOMKilled"
+•	Pod eventually shows CrashLoopBackOff as OpenShift increases retry wait times.
+________________________________________
+d. Increase Memory Limit
+•	Set a higher limit to allow longer runtime while developers fix the bug:
+oc set resources deployment/leakapp --limits memory=600Mi
+oc get pods
+•	Pod now runs longer without frequent restarts.
+________________________________________
+e. Monitor Memory Usage
+•	Monitor pod memory usage with:
+oc adm top pods
+watch oc adm top pods
+•	When usage approaches 600Mi, the pod is killed and restarted by OOM.
+•	Monitor pod status simultaneously:
+watch oc get pods
+________________________________________
+f. Finish Exercise
+lab finish reliability-limits
+________________________________________
+4. Key Observations
+1.	OpenShift automatically restarts pods that exceed memory limits.
+2.	CrashLoopBackOff delays protect the cluster while buggy pods are repeatedly failing.
+3.	Setting appropriate memory requests and limits protects other workloads and nodes.
+4.	Use oc adm top pods to track actual memory usage.
+________________________________________
+✅ Summary Table
+Resource	Behavior if exceeded
+Memory request	Scheduling only; no runtime enforcement
+Memory limit	Pod killed → OOMKilled → restart
+CPU limit	Pod throttled; slower execution, no kill
+
