@@ -1,0 +1,47 @@
+Lab: Troubleshoot and Scale Applications
+Objective
+Remediate a malfunctioning web application (Famous Authors) with a MySQL backend and HTML frontend by:
+•	Identifying CPU-consuming pods.
+•	Fixing failed pods.
+•	Updating container images.
+•	Configuring probes.
+•	Scaling applications.
+•	Setting resource requests and limits.
+________________________________________
+Step 1: Identify Problematic Pods
+•	Use the web console → Observe → Dashboards → Kubernetes / Compute Resources / Namespace (Workloads).
+•	Identify the pod or deployment consuming excessive CPU and remove or correct it.
+________________________________________
+Step 2: Fix Database Deployment (quotesdb)
+•	Add missing environment variables:
+oc set env deployment/quotesdb MYSQL_USER=operator1 MYSQL_PASSWORD=redhat123 MYSQL_DATABASE=quotes
+•	Update to the new MySQL container image:
+oc set image deployment/quotesdb mysql-80=registry.ocp4.example.com:8443/rhel9/mysql-80:1-237
+•	Add readiness and liveness probes:
+oc set probe deployment/quotesdb --readiness -- mysqladmin ping
+oc set probe deployment/quotesdb --liveness -- mysqladmin ping
+•	Set resource requests and limits:
+oc set resources deployment/quotesdb --requests cpu=200m,memory=256Mi --limits cpu=500m,memory=1Gi
+________________________________________
+Step 3: Configure Frontend Deployment
+•	Add readiness and liveness probes:
+oc set probe deployment/frontend --readiness --get-url=http://:8000/status
+oc set probe deployment/frontend --liveness --get-url=http://:8000/env
+•	Set CPU and memory requests/limits:
+oc set resources deployment/frontend --requests cpu=200m,memory=256Mi --limits cpu=500m,memory=512Mi
+________________________________________
+Step 4: Scale Applications
+•	Scale the frontend deployment for high availability:
+oc scale deployment/frontend --replicas=3
+________________________________________
+Step 5: Test Application
+•	Use the route to test the frontend:
+curl http://frontend-compreview-scale.apps.ocp4.example.com
+•	Verify MySQL backend connectivity and correct responses from the UI.
+________________________________________
+Step 6: Lab Completion
+•	Grade your work:
+lab grade compreview-scale
+•	Finish and clean up:
+lab finish compreview-scale
+
