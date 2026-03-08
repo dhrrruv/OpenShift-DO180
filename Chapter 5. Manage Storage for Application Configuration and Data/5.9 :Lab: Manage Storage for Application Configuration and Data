@@ -1,0 +1,117 @@
+Lab: Manage Storage for Application Configuration and Data
+Goal
+Deploy a web application and database that:
+•	Share database credentials via a secret
+•	Use local storage for database (better performance)
+•	Use NFS storage for file-sharing apps (shareable)
+•	Use ConfigMap to provide configuration files
+•	Demonstrate adding/removing volumes and connecting apps
+________________________________________
+Step 1 — Login & Project
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+oc project storage-review
+________________________________________
+Step 2 — Create Secret for DB Credentials
+oc create secret generic world-cred \
+  --from-literal user=redhat \
+  --from-literal password=redhat123 \
+  --from-literal database=world_x
+Verify:
+oc get secrets world-cred
+________________________________________
+Step 3 — Create ConfigMap for SQL file
+oc create configmap dbfiles \
+  --from-file ~/DO180/labs/storage-review/insertdata.sql
+Verify:
+oc get configmaps
+________________________________________
+Step 4 — Deploy Database
+Create deployment:
+oc create deployment dbserver \
+  --image registry.ocp4.example.com:8443/redhattraining/mysql-app:v1
+Set environment variables from secret:
+oc set env deployment/dbserver --from secret/world-cred --prefix MYSQL_
+Verify pod is RUNNING:
+oc get pods
+________________________________________
+Step 5 — Add Persistent Volume to DB
+oc set volume deployment/dbserver \
+  --add --name dbserver-lvm --type persistentVolumeClaim \
+  --claim-mode rwo --claim-size 1Gi \
+  --mount-path /var/lib/mysql --claim-class lvms-vg1 \
+  --claim-name dbserver-lvm-pvc
+Check PVC:
+oc get pvc
+________________________________________
+Step 6 — Expose DB Service
+oc expose deployment dbserver --name mysql-service --port 3306 --target-port 3306
+oc get services
+oc get endpoints
+________________________________________
+Step 7 — Deploy Web Application (File Sharing)
+Create deployment:
+oc create deployment file-sharing \
+  --image registry.ocp4.example.com:8443/redhattraining/php-webapp-mysql:v1
+Scale to 2 replicas:
+oc scale deployment file-sharing --replicas 2
+Expose deployment:
+oc expose deployment file-sharing --name file-sharing --port 8080 --target-port 8080
+oc expose service/file-sharing
+oc get routes
+Test in browser:
+http://file-sharing-storage-review.apps.ocp4.example.com
+________________________________________
+Step 8 — Mount ConfigMap to Web App
+Mount dbfiles SQL file:
+oc set volume deployment/file-sharing \
+  --add --name=config-map-pvc \
+  --type=configmap --configmap-name=dbfiles \
+  --mount-path=/home/database-files
+Verify content:
+oc exec -it pod/file-sharing-XXXXX -- ls /home/database-files/
+________________________________________
+Step 9 — Add Shared NFS Volume to Web App
+oc set volume deployment/file-sharing \
+  --add --name shared-volume --type persistentVolumeClaim \
+  --claim-mode rwo --claim-size 1Gi \
+  --mount-path /home/sharedfiles --claim-class nfs-storage \
+  --claim-name shared-pvc
+Verify PVC:
+oc get pvc
+Copy SQL file to shared folder:
+oc exec -it pod/file-sharing-XXXXX -- cp /home/database-files/insertdata.sql /home/sharedfiles/
+oc exec -it pod/file-sharing-XXXXX -- ls /home/sharedfiles/
+Remove ConfigMap volume:
+oc set volume deployment/file-sharing --remove --name=config-map-pvc
+________________________________________
+Step 10 — Mount Shared Volume to DB
+oc set volume deployment/dbserver \
+  --add --name shared-volume \
+  --claim-name shared-pvc \
+  --mount-path /home/sharedfiles
+Verify pod and content:
+oc exec -it pod/dbserver-XXXXX -- head /home/sharedfiles/insertdata.sql
+________________________________________
+Step 11 — Load Data into Database
+oc rsh dbserver-XXXXX
+mysql -u$MYSQL_USER -p$MYSQL_PASSWORD world_x < /home/sharedfiles/insertdata.sql
+exit
+Verify web app connectivity in browser:
+http://file-sharing-storage-review.apps.ocp4.example.com
+________________________________________
+Step 12 — Lab Completion
+Grade your work:
+lab grade storage-review
+Finish lab:
+lab finish storage-review
+________________________________________
+Key Concepts / Exam Points
+Concept	Notes
+Secret	Stores DB credentials, accessed via environment variables
+ConfigMap	Provides configuration files (SQL) to pods
+PVC	Persistent storage for data and shared files
+Storage Class	lvms-vg1 (local), nfs-storage (shareable)
+Web App Scaling	NFS allows sharing files across replicas
+Volumes	Add/remove dynamically with oc set volume
+Service & Route	Expose pods internally (service) and externally (route)
+
