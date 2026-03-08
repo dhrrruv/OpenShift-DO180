@@ -1,0 +1,331 @@
+Deploy Applications from an Image and from a Template
+Objectives
+Identify the main resources and settings that Kubernetes uses to manage long-lived applications and demonstrate how OpenShift simplifies common application deployment workflows.
+
+1. Deploying Applications in Kubernetes / OpenShift
+Modern applications use microservices and containers.
+•	Each application component runs in a container.
+•	Kubernetes/OpenShift manages these containers using resources.
+So instead of deploying a whole app at once, Kubernetes manages multiple resources like:
+•	Pod
+•	Deployment
+•	Service
+•	Secret
+•	Persistent Volume
+•	Template
+•	Project
+These resources together form the application.
+________________________________________
+2. Resources and Resource Definitions
+A resource is a configuration object that tells Kubernetes what should run in the cluster.
+Example resource types:
+•	Pod
+•	Deployment
+•	Service
+•	Secret
+•	PersistentVolumeClaim
+•	Template
+Resources are usually written in YAML files.
+Example:
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mypod
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+Important thing:
+Creating a resource does not instantly create the object.
+It sends a request to the cluster and Kubernetes eventually creates it.
+________________________________________
+3. Managing Resources
+You can manage resources in:
+•	YAML
+•	JSON
+Most common format → YAML
+Example command:
+Delete deployments using a label:
+oc delete deployment -l app=my-app
+Explanation:
+Part	Meaning
+oc	OpenShift CLI
+delete	delete resource
+deployment	resource type
+-l app=my-app	select resources with label
+Important concept:
+Commands without namespace run in current namespace.
+________________________________________
+4. Templates (OpenShift Feature)
+A Template is a YAML file that contains multiple resources with parameters.
+Templates help deploy complex applications quickly.
+Example resources inside template:
+•	Secret
+•	Service
+•	Deployment
+•	PersistentVolumeClaim
+________________________________________
+Processing a Template
+Command:
+oc process -f mysql-template.yaml -o yaml
+Meaning:
+Part	Meaning
+oc process	process template
+-f	template file
+-o yaml	output YAML
+Output will generate resources like:
+•	Secret
+•	Service
+•	PVC
+•	Deployment
+________________________________________
+View Template Parameters
+Command:
+oc process -f mysql-template.yaml --parameters
+Shows configurable values like:
+•	MYSQL_USER
+•	MYSQL_PASSWORD
+•	MYSQL_DATABASE
+•	VOLUME_CAPACITY
+________________________________________
+Deploy Template using new-app
+Command:
+oc new-app --template mysql-persistent
+This creates:
+•	Secret
+•	Service
+•	PVC
+•	Deployment
+Example output resources:
+secret "mysql" created
+service "mysql" created
+persistentvolumeclaim "mysql" created
+deployment.apps "mysql" created
+So one command deploys the whole application.
+________________________________________
+5. Pod
+A Pod is the smallest deployable unit in Kubernetes.
+A pod contains:
+•	One or more containers
+•	Shared networking
+•	Shared storage
+Example Pod YAML:
+apiVersion: v1
+kind: Pod
+metadata:
+  name: registry
+spec:
+  containers:
+  - name: registry
+    image: openshift/origin-docker-registry:v0.6.2
+    ports:
+    - containerPort: 5000
+Important parts:
+Section	Purpose
+apiVersion	API version
+kind	resource type
+metadata	name, labels
+spec	container details
+status	current pod state
+________________________________________
+6. Deployment
+A Deployment manages pods and ensures the desired number of replicas run.
+Deployment provides:
+•	Pod creation
+•	Scaling
+•	Rolling updates
+•	Self-healing
+Example YAML:
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-openshift
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello-openshift
+  template:
+    metadata:
+      labels:
+        app: hello-openshift
+    spec:
+      containers:
+      - name: hello-openshift
+        image: openshift/hello-openshift:latest
+        ports:
+        - containerPort: 80
+Important fields:
+Field	Meaning
+replicas	number of pods
+selector	identifies pods
+template	pod definition
+image	container image
+________________________________________
+7. Projects (OpenShift)
+A Project is an enhanced Kubernetes Namespace.
+Used for:
+•	resource isolation
+•	user access control
+•	organizing applications
+Example YAML:
+apiVersion: project.openshift.io/v1
+kind: Project
+metadata:
+  name: test
+Projects use RBAC for permissions.
+________________________________________
+8. Services
+Pods are temporary.
+A Service provides stable networking access to pods.
+Service works using labels and selectors.
+Example YAML:
+apiVersion: v1
+kind: Service
+metadata:
+  name: docker-registry
+spec:
+  selector:
+    app: MyApp
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 9376
+Explanation:
+Field	Meaning
+selector	finds pods with label
+port	service port
+targetPort	pod port
+Service routes traffic → pods.
+________________________________________
+9. Persistent Volume Claims (PVC)
+Containers normally lose data when they restart.
+PVC allows persistent storage.
+Process:
+1.	Admin creates Persistent Volume (PV)
+2.	Developer creates PVC
+3.	Kubernetes binds PVC to PV
+Example YAML:
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: nfs-storage
+Important fields:
+Field	Meaning
+accessModes	read/write permissions
+storage	requested storage
+storageClassName	storage type
+________________________________________
+10. Secrets
+Secrets store sensitive data.
+Examples:
+•	passwords
+•	API tokens
+•	SSH keys
+•	certificates
+Example YAML:
+apiVersion: v1
+kind: Secret
+metadata:
+  name: example-secret
+type: Opaque
+data:
+  username: bXl1c2Vy
+  password: bXlQQDU1
+Important:
+•	data → base64 encoded
+•	stringData → plain text
+Secrets can be used:
+•	as environment variables
+•	as mounted files
+________________________________________
+11. Resource Management Approaches
+Two ways to manage resources:
+1️⃣ Imperative
+You tell the cluster what action to perform.
+Example:
+oc create deployment my-app --image example.com/my-image
+Add environment variable:
+oc set env deployment/my-app TEAM=red
+Create pod:
+oc run example-pod \
+--image=registry.access.redhat.com/ubi8/httpd-24 \
+--env GREETING="Hello" \
+--port 8080
+Imperative is fast for testing.
+________________________________________
+2️⃣ Declarative
+You define desired state in YAML.
+Example:
+oc create -f deployment.yaml
+Cluster ensures the state matches the YAML.
+Best for:
+•	version control
+•	automation
+•	CI/CD
+________________________________________
+12. oc new-app Command
+new-app automatically creates resources.
+Example using image:
+oc new-app --image example.com/my-app:dev
+Example using Git repo:
+oc new-app https://github.com/apache/httpd.git
+Example using template:
+oc new-app --template mysql-persistent
+It automatically creates:
+•	ImageStream
+•	Deployment
+•	Service
+________________________________________
+13. Viewing Resource Information
+View resources
+oc get all
+Shows common resources.
+________________________________________
+Describe resource
+oc describe template mysql-ephemeral -n openshift
+Shows:
+•	parameters
+•	configuration
+•	events
+________________________________________
+Structured output
+oc get pod mypod -o yaml
+Outputs resource in YAML format.
+________________________________________
+Quick Exam Summary (Most Important)
+Remember these key resources:
+Resource	Purpose
+Pod	smallest unit
+Deployment	manages pods
+Service	networking access
+PVC	persistent storage
+Secret	sensitive data
+Template	deploy multiple resources
+Project	namespace with RBAC
+Important commands:
+oc new-app
+oc create
+oc run
+oc set env
+oc get
+oc describe
+oc delete
+oc process
+Concepts to remember:
+•	Imperative vs Declarative
+•	Template deployment
+•	Pod vs Deployment
+•	Service networking
+•	PVC storage
+•	Secrets for credentials
+
+
+
