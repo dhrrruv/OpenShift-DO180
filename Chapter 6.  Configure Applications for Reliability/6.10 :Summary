@@ -1,0 +1,26 @@
+Summary 
+Highly Available Applications
+•	Designed to resist failures or conditions that could make them unavailable.
+•	Kubernetes/OpenShift ensures traffic only reaches healthy pods.
+________________________________________
+Health Probes
+•	Readiness probes: Ensure a pod is ready before sending traffic.
+•	Liveness probes: Detect and restart unhealthy pods.
+•	Proper probes prevent requests from failing during startup or crashes.
+________________________________________
+Resource Requests and Limits
+•	Requests: Minimum guaranteed CPU/memory for scheduling pods.
+•	Limits: Maximum CPU/memory a pod can consume.
+•	Helps balance cluster node resources and prevents resource exhaustion.
+________________________________________
+Horizontal Pod Autoscaler (HPA)
+•	Automatically scales the number of pod replicas.
+•	Scaling decisions based on metrics such as CPU or memory utilization.
+•	Parameters include:
+o	minReplicas and maxReplicas
+o	target utilization (e.g., 60% memory usage)
+________________________________________
+✅ Takeaway:
+•	Combine probes + resource requests/limits + HPA to make applications reliable, responsive, and efficient under varying loads.
+
+
