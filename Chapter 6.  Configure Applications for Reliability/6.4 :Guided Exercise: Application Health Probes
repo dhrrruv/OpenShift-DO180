@@ -1,0 +1,109 @@
+Guided Exercise: Application Health Probes
+Configure health probes in a deployment and verify that network clients are insulated from application failures.
+Outcomes
+Assess potential issues with an application that is not configured with health probes.
+Configure startup, liveness, and readiness probes for the application.
+
+1. Lab Setup
+Start the lab environment:
+lab start reliability-probes
+What it does:
+•	Creates the reliability-probes project in OpenShift.
+•	Provides the long-load container image and YAML resources for this exercise.
+•	This container has endpoints to simulate crashes and temporary unavailability.
+Log in and select the project:
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+oc project reliability-probes
+________________________________________
+2. Deploy the Application Without Probes
+Apply the deployment YAML:
+oc apply -f ~/DO180/labs/reliability-probes/long-load-deploy.yaml
+Test if the app is responding:
+oc exec deploy/long-load -- curl -s localhost:3000/health
+# app is still starting
+Check pod readiness:
+oc get pods
+Observation/Theory:
+•	Pods show READY 1/1 even though the application isn’t ready.
+•	Without probes, Kubernetes assumes pods are ready immediately, so clients might receive requests before the app is functional.
+________________________________________
+3. Add a Startup Probe
+Modify the deployment YAML to add:
+startupProbe:
+  failureThreshold: 30
+  periodSeconds: 3
+  httpGet:
+    path: /health
+    port: 3000
+Apply the updated deployment:
+oc apply -f ~/DO180/labs/reliability-probes/long-load-deploy.yaml
+Check pod readiness:
+watch oc get pods
+Observation/Theory:
+•	Pods now remain not ready until the startup probe succeeds.
+•	Startup probes ensure the pod isn’t marked ready until the app has fully started.
+•	Useful for apps with long startup times.
+________________________________________
+4. Add a Liveness Probe
+•	Start the load test to simulate traffic:
+~/DO180/labs/reliability-probes/load-test.sh
+•	Make a pod unhealthy using the /togglesick endpoint:
+oc exec deploy/long-load -- curl -s localhost:3000/togglesick
+Modify deployment YAML to add a liveness probe:
+livenessProbe:
+  failureThreshold: 3
+  periodSeconds: 3
+  httpGet:
+    path: /health
+    port: 3000
+Apply the updated deployment:
+oc apply -f ~/DO180/labs/reliability-probes/long-load-deploy.yaml
+Observation/Theory:
+•	Liveness probes detect broken pods and trigger a restart.
+•	In the load test, unhealthy pod is restarted automatically, while healthy pods continue serving requests.
+•	Liveness probes help maintain high availability by ensuring broken pods don’t serve traffic.
+________________________________________
+5. Add a Readiness Probe
+•	Scale down deployment to 0 replicas:
+oc scale deploy/long-load --replicas 0
+•	Add readiness probe via CLI:
+oc set probe deploy/long-load \
+  --readiness --failure-threshold 1 --period-seconds 3 \
+  --get-url http://:3000/health
+•	Scale deployment back up:
+oc scale deploy/long-load --replicas 3
+watch oc get pods
+•	Simulate temporary unavailability with /hiccup:
+oc exec deploy/long-load -- curl -s localhost:3000/hiccup?time=5
+Observation/Theory:
+•	Pod is marked not ready during temporary failure (5 seconds).
+•	Readiness probe ensures traffic is only sent to healthy pods, insulating clients from temporary issues.
+•	Unlike liveness probe, the pod is not restarted because the issue is temporary.
+________________________________________
+6. Key Takeaways (Theory)
+Probe Type	Purpose	Behavior
+Startup Probe	Detect when pod is fully started	Runs until success; ignores afterwards; prevents early readiness
+Readiness Probe	Determines if pod can receive traffic	Removes pod from service endpoints when unhealthy; adds back when healthy
+Liveness Probe	Checks pod is alive	Restarts pod if unhealthy; runs continuously
+Best Practice:
+•	Use startup probe for long start times.
+•	Use readiness probe to protect clients from traffic to unhealthy pods.
+•	Use liveness probe to restart broken pods.
+________________________________________
+7. Important Commands Cheat-Sheet
+Task	Command
+Start lab	lab start reliability-probes
+Deploy application	oc apply -f long-load-deploy.yaml
+Check pod status	oc get pods or watch oc get pods
+Exec to pod	oc exec deploy/long-load -- curl -s localhost:3000/health
+Make pod unhealthy	/togglesick or /hiccup endpoints
+Scale deployment	oc scale deploy/long-load --replicas N
+Add readiness probe	oc set probe deploy/long-load --readiness --failure-threshold 1 --period-seconds 3 --get-url http://:3000/health
+Finish lab	lab finish reliability-probes
+________________________________________
+✅ Summary:
+This exercise demonstrates how health probes improve application reliability:
+•	Startup probe → prevents early readiness.
+•	Liveness probe → restarts broken pods.
+•	Readiness probe → prevents sending traffic to unhealthy pods.
+
