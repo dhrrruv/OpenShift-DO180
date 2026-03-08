@@ -1,0 +1,264 @@
+Manage Long-lived and Short-lived Applications Using Kubernetes Workload API
+Objective
+Learn how Kubernetes manages applications using workload resources.
+Applications in Kubernetes can be:
+Type	Meaning
+Short-lived applications	Run once and stop
+Long-lived applications	Run continuously
+These are managed using the Kubernetes Workloads API.
+________________________________________
+1. Kubernetes Workload Resources
+The Workloads API contains resources used to run and manage applications in the cluster.
+Most commonly used resources:
+Resource	Purpose
+Job	Run a task once
+CronJob	Run task on schedule
+Deployment	Run long-lived applications
+DaemonSet	Run pod on every node
+StatefulSet	Run stateful applications
+These resources manage pods automatically.
+________________________________________
+2. Jobs (Short-Lived Workloads)
+A Job runs a one-time task in Kubernetes.
+Example uses:
+•	Database migration
+•	Backup
+•	Batch processing
+•	One-time script execution
+A Job creates a pod that runs the task.
+If the pod fails → Kubernetes retries automatically.
+When the job completes successfully → it stops.
+________________________________________
+Job vs Pod
+Feature	Pod (oc run)	Job
+Restart on failure	❌ No	✅ Yes
+Controller manages it	❌ No	✅ Yes
+Retry capability	❌ No	✅ Yes
+________________________________________
+Create a Job
+Command:
+oc create job date-job \
+--image registry.access.redhat.com/ubi9/ubi \
+-- /bin/bash -c "date"
+Explanation
+Part	Meaning
+oc create job	create job resource
+date-job	job name
+--image	container image
+--	separates command
+date	command executed in container
+Result:
+Kubernetes creates a pod that runs:
+date
+Then the pod exits after printing the date.
+________________________________________
+3. CronJobs (Scheduled Jobs)
+A CronJob runs a job periodically based on time.
+Works similar to Linux crontab.
+Example uses:
+•	Nightly backups
+•	Log cleanup
+•	Report generation
+•	Scheduled maintenance
+________________________________________
+Cron Format
+* * * * *
+| | | | |
+| | | | +---- day of week
+| | | +------ month
+| | +-------- day of month
+| +---------- hour
++------------ minute
+Example:
+*/1 * * * *
+Meaning:
+Run every minute.
+________________________________________
+Create CronJob
+Command:
+oc create cronjob date-cronjob \
+--image registry.access.redhat.com/ubi9/ubi \
+--schedule "*/1 * * * *" \
+-- date
+Explanation
+Part	Meaning
+oc create cronjob	create scheduled job
+date-cronjob	name
+--image	container image
+--schedule	cron timing
+date	command executed
+Result:
+Every 1 minute, Kubernetes:
+1.	Creates a Job
+2.	Job creates a Pod
+3.	Pod runs date
+________________________________________
+4. Deployments (Long-Lived Applications)
+A Deployment manages long-running applications.
+Example:
+•	Web servers
+•	APIs
+•	Microservices
+•	Applications
+Deployment ensures:
+•	required number of pods always run
+•	pods restart if they crash
+•	rolling updates
+________________________________________
+Deployment Architecture
+Deployment
+   ↓
+ReplicaSet
+   ↓
+Pods
+Explanation:
+Component	Purpose
+Deployment	manages application
+ReplicaSet	maintains number of pods
+Pod	runs containers
+________________________________________
+Create Deployment
+Command:
+oc create deployment my-deployment \
+--image registry.access.redhat.com/ubi9/ubi \
+--replicas 3
+Explanation
+Part	Meaning
+oc create deployment	create deployment
+my-deployment	name
+--image	container image
+--replicas 3	run 3 pods
+Result:
+Kubernetes creates:
+1 Deployment
+1 ReplicaSet
+3 Pods
+________________________________________
+Why Deployment is Important
+If a pod crashes:
+Kubernetes automatically creates another pod.
+Example:
+Replicas = 3
+Pod crashes → new pod created
+So deployment ensures high availability.
+________________________________________
+5. Labels and Selectors
+Labels are key-value metadata attached to resources.
+Example:
+environment=testing
+team=frontend
+layer=backend
+Labels help:
+•	organize resources
+•	filter resources
+•	connect services and pods
+________________________________________
+Example Label
+layer=frontend
+Applied to UI components.
+________________________________________
+Delete Pods with Label
+Command:
+oc delete pod -l environment=testing
+Explanation:
+Part	Meaning
+-l	label selector
+environment=testing	filter condition
+Deletes only pods with that label.
+________________________________________
+Selectors
+Selectors are queries used to match labels.
+Example YAML:
+selector:
+  matchLabels:
+    app: httpd
+Meaning:
+Select pods where:
+app=httpd
+________________________________________
+6. DaemonSets
+A DaemonSet runs a pod on every node in the cluster.
+Example:
+Cluster with 3 nodes:
+Node1 → Pod
+Node2 → Pod
+Node3 → Pod
+If a new node is added:
+Node4 → Pod automatically created
+________________________________________
+Uses of DaemonSets
+Common use cases:
+Use Case	Example
+Logging agents	Fluentd
+Monitoring agents	Prometheus node exporter
+Storage services	Ceph
+Networking services	CNI plugins
+________________________________________
+Create DaemonSet
+Command:
+oc create daemonset my-daemonset \
+--image registry.access.redhat.com/ubi9/ubi
+Explanation:
+Part	Meaning
+oc create daemonset	create daemonset
+my-daemonset	name
+--image	container image
+Result:
+A pod runs on every node.
+________________________________________
+7. StatefulSets
+A StatefulSet manages stateful applications.
+Example:
+•	databases
+•	distributed systems
+•	clustered apps
+Unlike deployments:
+Pods are not identical.
+Each pod has:
+•	unique hostname
+•	unique storage
+•	stable identity
+________________________________________
+Example Stateful Pods
+mysql-0
+mysql-1
+mysql-2
+Each pod:
+•	keeps its own data
+•	has persistent storage
+________________________________________
+Deployment vs StatefulSet
+Feature	Deployment	StatefulSet
+Pod identity	identical	unique
+Storage	shared	persistent per pod
+Use case	stateless apps	databases
+________________________________________
+Long-Lived vs Short-Lived Workloads
+Workload Type	Resource
+One-time task	Job
+Scheduled task	CronJob
+Continuous service	Deployment
+Node-level service	DaemonSet
+Stateful application	StatefulSet
+________________________________________
+Most Important Commands for Exams
+Job
+oc create job
+CronJob
+oc create cronjob
+Deployment
+oc create deployment
+DaemonSet
+oc create daemonset
+Delete using labels
+oc delete pod -l label=value
+________________________________________
+Very Important Exam Concept
+Short-lived workloads
+Job
+CronJob
+Long-lived workloads
+Deployment
+DaemonSet
+StatefulSet
+
