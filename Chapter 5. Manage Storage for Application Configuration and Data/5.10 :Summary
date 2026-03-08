@@ -1,0 +1,104 @@
+Summary
+1. ConfigMaps
+Theory:
+•	ConfigMaps store non-sensitive configuration data (like configuration files, environment variables, or SQL files) separately from the container image.
+•	Useful for decoupling configuration from application code.
+•	Can be mounted as volumes or injected as environment variables in pods.
+Commands:
+•	Create from file:
+oc create configmap dbfiles --from-file=insertdata.sql
+•	Verify:
+oc get configmaps
+•	Mount as a volume in deployment:
+oc set volume deployment/file-sharing --add --name=config-map-pvc --mount-path=/home/database-files --configmap-name=dbfiles
+________________________________________
+2. Secrets
+Theory:
+•	Secrets store sensitive data like passwords, API keys, or database credentials.
+•	Values are base64-encoded, not encrypted — keep in mind for security.
+•	Can also be mounted as volumes or injected as environment variables.
+Commands:
+•	Create a secret:
+oc create secret generic world-cred --from-literal=user=redhat --from-literal=password=redhat123 --from-literal=database=world_x
+•	Inject into deployment as environment variables:
+oc set env deployment/dbserver --from secret/world-cred --prefix=MYSQL_
+•	Verify:
+oc get secrets world-cred
+________________________________________
+3. Persistent Volume Claims (PVCs)
+Theory:
+•	PVCs are requests for storage by a pod.
+•	They define capacity, access mode, and optionally the storage class.
+•	Pod can then mount the PVC as a volume.
+•	Access modes:
+o	ReadWriteOnce (RWO) – One pod can read/write.
+o	ReadOnlyMany (ROX) – Multiple pods can read.
+o	ReadWriteMany (RWX) – Multiple pods can read/write.
+Commands:
+•	Add PVC to deployment:
+oc set volume deployment/web-server --add --name=web-pv --type=persistentVolumeClaim --claim-mode=rwo --claim-size=5Gi --mount-path=/usr/share/nginx/html --claim-name=web-pv-claim
+•	Verify PVC:
+oc get pvc
+________________________________________
+4. Volume Modes
+Theory:
+•	Kubernetes supports two volume modes for PVs:
+1.	Filesystem – Standard file system, most common.
+2.	Block – Raw block device access, can improve performance (used for databases).
+Commands:
+•	Specify block volume via storage class (example lab):
+volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: "lvms-vg1"
+      resources:
+        requests:
+          storage: 1Gi
+________________________________________
+5. Storage Classes
+Theory:
+•	Define types of storage in a cluster (e.g., NFS, local disk, SSD).
+•	Enable dynamic provisioning: PVC automatically creates a PV using the storage class.
+•	Storage classes can optimize for performance, availability, or replication.
+Commands:
+•	Use default storage class when creating PVC (no --claim-class specified):
+oc set volume deployment/web-server --add --name=web-pv --claim-size=5Gi ...
+•	Specify storage class explicitly:
+--claim-class nfs-storage
+________________________________________
+6. Reclaim Policy
+Theory:
+•	Determines what happens to PV data after PVC is deleted. Common policies:
+o	Delete – PV and data are deleted.
+o	Retain – PV remains, data is safe.
+o	Recycle – PV is scrubbed and made available for reuse.
+Commands:
+•	Check PVC and PV:
+oc get pvc
+oc get pv
+________________________________________
+7. Stateful Sets
+Theory:
+•	Represent stateful applications with stable, unique identities (hostnames, network IDs).
+•	Each pod gets its own unique PV, unlike deployments where replicas share PVC.
+•	Useful for databases, caches, or any app that requires persistent state.
+Commands:
+•	Create a stateful set:
+oc create -f statefulset-db.yml
+•	Verify pods:
+oc get pods -l app=database -o wide
+•	Check PVs per pod:
+oc get pvc -l app=database
+________________________________________
+8. Practical Differences: Deployment vs Stateful Set
+Feature	Deployment	StatefulSet
+Pod identity	Dynamic	Stable, unique
+PVC per pod	Shared	One PVC per pod
+Use case	Stateless apps	Databases, caches, etc.
+________________________________________
+✅ Quick Tip:
+•	Deployments + shared PVC → good for web servers serving static content.
+•	StatefulSets + unique PVC per pod → required for databases to preserve individual pod data.
+
