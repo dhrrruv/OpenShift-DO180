@@ -1,0 +1,396 @@
+Provision Persistent Data Volumes (Kubernetes / OpenShift)
+Objective
+Provide applications with persistent storage so that data is not lost when pods are deleted.
+________________________________________
+1. Problem: Container Storage is Ephemeral
+By default, containers use ephemeral storage.
+Ephemeral Storage
+•	Temporary storage
+•	Exists only while the pod is running
+If the pod is deleted:
+Pod Deleted
+   ↓
+Container Deleted
+   ↓
+All Files Lost
+Example:
+Pod writes data → /var/lib/mysql
+Pod crashes → new pod created
+Old data lost
+This is why Kubernetes provides Persistent Storage.
+________________________________________
+2. Kubernetes Persistent Storage Architecture
+Main components:
+Application
+     ↓
+Persistent Volume Claim (PVC)
+     ↓
+Persistent Volume (PV)
+     ↓
+Storage System (NFS, AWS EBS, etc.)
+Explanation
+Component	Role
+PV	actual storage in cluster
+PVC	request for storage
+StorageClass	storage type definition
+________________________________________
+3. Two Ways to Provision Storage
+1️⃣ Static Provisioning
+Administrator manually creates Persistent Volumes.
+Flow:
+Admin → Create PV
+Developer → Create PVC
+PVC → binds to PV
+Example:
+PV: 100Gi
+PVC request: 50Gi
+PVC binds to PV
+________________________________________
+2️⃣ Dynamic Provisioning
+Storage is created automatically using StorageClass.
+Flow:
+Developer creates PVC
+        ↓
+StorageClass creates PV automatically
+        ↓
+PVC binds to new PV
+Dynamic provisioning is most common in production.
+________________________________________
+4. Storage Classes
+What is StorageClass?
+A StorageClass defines the type of storage.
+Example types:
+•	SSD storage
+•	HDD storage
+•	NFS storage
+•	Cloud storage
+Example:
+nfs-storage
+aws-ebs
+ceph
+lvms
+Command to view:
+oc get storageclass
+Example output:
+NAME           PROVISIONER
+nfs-storage    k8s-sigs.io/nfs
+lvms-vg1       topolvm.io
+Default storage class is marked:
+(default)
+________________________________________
+5. Persistent Volume (PV)
+What is PV?
+A Persistent Volume is actual storage in the cluster.
+It could be:
+•	NFS server
+•	Cloud disk
+•	Storage array
+•	Local disk
+________________________________________
+Example PV Manifest
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: block-pv
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Block
+  persistentVolumeReclaimPolicy: Retain
+  fc:
+    targetWWNs: ["50060e801049cfd1"]
+    lun: 0
+    readOnly: false
+________________________________________
+Explanation
+Field	Meaning
+kind	PersistentVolume resource
+capacity	storage size
+accessModes	access permissions
+volumeMode	filesystem or block
+reclaimPolicy	what happens after delete
+fc	fiber channel storage
+________________________________________
+Create PV
+oc create -f my-pv.yaml
+This command creates a PersistentVolume object.
+________________________________________
+6. Persistent Volume Claim (PVC)
+What is PVC?
+A PVC is a storage request by an application.
+Developers request:
+•	storage size
+•	access mode
+•	storage class
+They do NOT need to know storage infrastructure.
+________________________________________
+PVC Example
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mypvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 15Gi
+________________________________________
+Explanation
+Field	Meaning
+kind	PVC resource
+name	claim name
+accessModes	storage access type
+storage	requested size
+________________________________________
+Create PVC
+oc create -f pvc.yaml
+________________________________________
+View PVC
+oc get pvc
+Example:
+NAME   STATUS   VOLUME     CAPACITY
+mypvc  Bound    pvc-1234   15Gi
+Status Meaning
+Status	Meaning
+Pending	waiting for PV
+Bound	PVC connected to PV
+________________________________________
+7. Access Modes
+Access modes define how pods access storage.
+Mode	Meaning
+ReadWriteOnce (RWO)	one node read/write
+ReadWriteOncePod (RWOP)	single pod
+ReadOnlyMany (ROX)	many nodes read-only
+ReadWriteMany (RWX)	many nodes read/write
+________________________________________
+Example
+Storage	Access
+Local disk	RWO
+NFS	RWX
+Cloud disk	RWO
+________________________________________
+8. Volume Types
+Common volume types:
+Volume	Description
+configMap	configuration data
+emptyDir	temporary storage
+hostPath	host machine directory
+iSCSI	block storage
+local	node disk
+NFS	shared network storage
+________________________________________
+emptyDir
+Temporary storage inside pod.
+Example use:
+cache
+temporary files
+logs
+Deleted when pod is deleted.
+________________________________________
+hostPath
+Mounts host machine directory.
+Example:
+/var/data (host)
+↓
+mounted in pod
+⚠ Not recommended in production.
+________________________________________
+NFS
+Network File System.
+Features:
+Shared storage
+Multiple pods access same data
+Access mode supported:
+RWX
+________________________________________
+9. Volume Modes
+Kubernetes supports two modes:
+Mode	Description
+Filesystem	normal files
+Block	raw disk access
+________________________________________
+Filesystem Mode
+Example:
+/data/file.txt
+Default mode.
+________________________________________
+Block Mode
+Raw disk device.
+Example:
+/dev/sdb
+Used for:
+•	databases
+•	high-performance storage
+________________________________________
+10. Adding PVC to Deployment
+Use command:
+oc set volumes deployment/example-application \
+--add \
+--name example-pv-storage \
+--type persistentVolumeClaim \
+--claim-mode rwo \
+--claim-size 15Gi \
+--mount-path /var/lib/example-app \
+--claim-name mypvc
+________________________________________
+Command Explanation
+Option	Meaning
+deployment/example	deployment name
+--add	add volume
+--name	volume name
+--type	pvc volume
+--claim-mode	access mode
+--claim-size	storage size
+--mount-path	container path
+--claim-name	pvc name
+________________________________________
+What This Command Does
+It automatically:
+1️⃣ Creates PVC
+2️⃣ Updates deployment
+3️⃣ Mounts storage in container
+________________________________________
+Deployment after PVC mount
+volumeMounts:
+- mountPath: /var/lib/example-app
+  name: example-pv-storage
+and
+volumes:
+- name: example-pv-storage
+  persistentVolumeClaim:
+    claimName: mypvc
+Meaning:
+Container path → /var/lib/example-app
+Storage source → mypvc
+________________________________________
+11. Dynamic Provisioning Example
+Command:
+oc set volumes deployment/example-application \
+--add \
+--name example-pv-storage \
+--type pvc \
+--claim-class nfs-storage \
+--claim-mode rwo \
+--claim-size 15Gi \
+--mount-path /var/lib/example-app \
+--claim-name mypvc
+________________________________________
+What happens here?
+PVC created
+     ↓
+StorageClass (nfs-storage)
+     ↓
+PV created automatically
+     ↓
+PVC binds to PV
+________________________________________
+12. PV Lifecycle
+Persistent Volumes follow lifecycle stages.
+________________________________________
+1️⃣ Available
+PV created but not used.
+PV ready for claim
+________________________________________
+2️⃣ Bound
+PVC successfully attached to PV.
+PVC ↔ PV
+________________________________________
+3️⃣ In Use
+Pods are using the storage.
+Pod → PVC → PV
+________________________________________
+4️⃣ Released
+PVC deleted but PV still exists.
+PV released
+________________________________________
+5️⃣ Reclaimed
+Cluster decides what to do with storage.
+Depends on reclaim policy.
+________________________________________
+13. Reclaim Policy
+Two policies exist.
+Policy	Behavior
+Retain	keep storage
+Delete	delete storage
+________________________________________
+Retain
+Admin must manually clean storage.
+Used for:
+important data
+________________________________________
+Delete
+Storage deleted automatically.
+Used in:
+dynamic provisioning
+________________________________________
+14. Delete PVC
+Command:
+oc delete pvc/mypvc
+Effect:
+PVC deleted
+PV released
+Storage reclaimed
+________________________________________
+15. Important Commands Summary
+View Storage Classes
+oc get storageclass
+________________________________________
+View PV
+oc get pv
+________________________________________
+View PVC
+oc get pvc
+________________________________________
+Create PV
+oc create -f pv.yaml
+________________________________________
+Create PVC
+oc create -f pvc.yaml
+________________________________________
+Delete PVC
+oc delete pvc/mypvc
+________________________________________
+16. Real Production Example
+Example:
+MySQL database
+Needs persistent data.
+Storage architecture:
+MySQL Pod
+    ↓
+PVC (10Gi)
+    ↓
+PV
+    ↓
+Storage (NFS / Cloud Disk)
+Now if pod crashes:
+New Pod created
+     ↓
+Attaches same PVC
+     ↓
+Data remains safe
+________________________________________
+Final Exam Summary
+Kubernetes persistent storage consists of:
+Component	Purpose
+PV	actual storage
+PVC	storage request
+StorageClass	storage type
+Provisioning methods:
+Static provisioning → admin creates PV
+Dynamic provisioning → storage class auto creates PV
+Access modes:
+RWO
+RWX
+ROX
+RWOP
+Main commands:
+oc get pv
+oc get pvc
+oc get storageclass
+oc create -f pvc.yaml
+oc delete pvc
+oc set volumes
+
