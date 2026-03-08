@@ -1,0 +1,347 @@
+Manage Non-shared Storage with StatefulSets
+Objective
+Deploy applications that scale but do NOT share storage.
+Examples of such applications:
+•	MySQL
+•	Cassandra
+•	MongoDB
+•	Kafka
+•	Elasticsearch
+These applications need separate storage for each instance.
+________________________________________
+1. Application Clustering
+Many enterprise applications run in clusters.
+Example:
+MySQL Cluster
+   ├── DB Node 1
+   ├── DB Node 2
+   └── DB Node 3
+Each node:
+•	Processes requests
+•	Stores data
+•	Synchronizes with other nodes
+Important requirement:
+Each node must have its own persistent storage
+Because sharing storage may cause:
+•	Data corruption
+•	Transaction conflicts
+•	Performance issues
+________________________________________
+2. File Storage (NAS)
+File storage provides a directory-based storage system.
+Example:
+/data/files
+/data/backups
+/data/images
+Typical storage type:
+NAS (Network Attached Storage)
+NAS Characteristics
+Feature	Description
+Directory structure	Yes
+Shared storage	Yes
+Easy management	Yes
+Performance	Moderate
+________________________________________
+NAS Protocols
+Two common protocols:
+NFS (Network File System)
+Allows remote systems to mount file systems.
+Example:
+server:/shared-data
+Pods can mount it as:
+/var/www/html
+________________________________________
+SMB (Server Message Block)
+Used in Windows environments.
+Used for:
+•	Shared folders
+•	Network printers
+•	File servers
+________________________________________
+File Storage Use Cases
+Good for:
+•	Web servers
+•	File sharing
+•	Backup systems
+•	FTP servers
+•	Archiving
+Example:
+Web Servers
+     ↓
+Shared NFS Storage
+     ↓
+HTML files
+________________________________________
+Limitation of File Storage
+File storage is not ideal for heavy workloads.
+Example problems:
+•	Big data
+•	High database transactions
+•	Large unstructured data
+In those cases block storage is better.
+________________________________________
+3. Block Storage
+Block storage provides raw storage devices.
+Example:
+Disk /dev/sda
+Disk /dev/sdb
+Applications must:
+1.	Format disk
+2.	Mount disk
+3.	Store data
+________________________________________
+Technologies used
+Examples:
+•	SAN (Storage Area Network)
+•	iSCSI
+•	Cloud disks (AWS EBS)
+________________________________________
+Block Storage Characteristics
+Feature	Description
+Access	Raw block level
+Performance	High
+Latency	Low
+Ideal for	Databases
+________________________________________
+Block Storage Use Cases
+Best for:
+•	SQL databases
+•	Virtual machines
+•	Data processing
+•	RAID configurations
+Example:
+Database Pod
+     ↓
+Block Volume
+     ↓
+SAN Storage
+________________________________________
+4. Stateful Applications
+A stateful application remembers previous state.
+Example:
+Bank system
+Transaction example:
+Balance = 1000
+Withdraw = 200
+Balance = 800
+The application must remember previous transactions.
+Examples of Stateful Apps:
+•	MySQL
+•	PostgreSQL
+•	MongoDB
+•	Cassandra
+•	Redis cluster
+________________________________________
+5. Deployments vs StatefulSets
+Deployment (Stateless)
+Pods are identical and interchangeable.
+Example:
+Web Server Deployment
+
+pod-abc
+pod-def
+pod-xyz
+Characteristics:
+•	Random pod names
+•	Shared storage
+•	Easy scaling
+________________________________________
+StatefulSet (Stateful)
+Pods have stable identity and storage.
+Example:
+dbserver-0
+dbserver-1
+dbserver-2
+Characteristics:
+•	Fixed pod names
+•	Unique storage
+•	Stable network identity
+________________________________________
+StatefulSet Key Concept
+Each pod gets its own PVC
+Example:
+dbserver-0 → pvc-dbserver-0
+dbserver-1 → pvc-dbserver-1
+dbserver-2 → pvc-dbserver-2
+Pods do not share storage.
+________________________________________
+6. Headless Services
+StatefulSets require Headless Service.
+A normal service:
+ClusterIP Service
+Example:
+service IP → load balances traffic
+________________________________________
+Headless Service
+A headless service has:
+clusterIP: None
+Example YAML:
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  clusterIP: None
+  selector:
+    app: database
+  ports:
+  - port: 3306
+________________________________________
+Why Headless Service?
+DNS returns IP of each pod directly.
+Example:
+dbserver-0.mysql
+dbserver-1.mysql
+dbserver-2.mysql
+Instead of load balancing.
+________________________________________
+7. StatefulSet YAML Example
+Example:
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dbserver
+spec:
+  replicas: 3
+  serviceName: mysql
+  selector:
+    matchLabels:
+      app: database
+
+  template:
+    metadata:
+      labels:
+        app: database
+    spec:
+      containers:
+      - name: database
+        image: registry.ocp4.example.com:8443/redhattraining/mysql-app:v1
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/mysql
+
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+        - ReadWriteOncePod
+      storageClassName: lvms-vg1
+      resources:
+        requests:
+          storage: 1Gi
+________________________________________
+8. Create Headless Service
+oc create -f headless-service.yml
+Check service:
+oc get svc
+Output:
+mysql   ClusterIP   None
+This confirms headless service created.
+________________________________________
+9. Create StatefulSet
+oc create -f statefulset-dbserver.yml
+Check:
+oc get statefulset
+Example output:
+dbserver   3/3
+________________________________________
+10. Pods Created
+oc get pods
+Example:
+dbserver-0
+dbserver-1
+dbserver-2
+Important:
+Pods are created one by one in order.
+dbserver-0 → first
+dbserver-1 → second
+dbserver-2 → third
+________________________________________
+11. Stable DNS Names
+Each pod gets predictable DNS.
+Format:
+<pod-name>.<service-name>
+Example:
+dbserver-0.mysql
+dbserver-1.mysql
+dbserver-2.mysql
+________________________________________
+12. Each Pod Gets Separate PVC
+Run:
+oc get pvc
+Example:
+data-dbserver-0
+data-dbserver-1
+data-dbserver-2
+Storage mapping:
+dbserver-0 → data-dbserver-0
+dbserver-1 → data-dbserver-1
+dbserver-2 → data-dbserver-2
+Each pod stores its own data.
+________________________________________
+13. Check PVC used by Pod
+Example:
+oc describe pod dbserver-0
+Output:
+ClaimName: data-dbserver-0
+Each pod mounts its own PVC.
+________________________________________
+14. Scaling StatefulSet
+Increase replicas:
+oc scale statefulset/dbserver --replicas 4
+New pod created:
+dbserver-3
+Also creates:
+data-dbserver-3 PVC
+________________________________________
+15. Delete StatefulSet
+oc delete statefulset dbserver
+Important behavior:
+Pods deleted
+PVCs NOT deleted
+Example:
+data-dbserver-0
+data-dbserver-1
+data-dbserver-2
+Data remains safe.
+________________________________________
+Deployment vs StatefulSet (Important Exam Table)
+Feature	Deployment	StatefulSet
+Pod Identity	Random	Stable
+Pod Naming	Random hash	Ordered
+Storage	Shared	Separate
+Scaling	Parallel	Ordered
+Use case	Stateless apps	Databases
+________________________________________
+Quick Architecture
+StatefulSet Architecture
+
+Headless Service
+       │
+       ▼
+ dbserver StatefulSet
+       │
+ ┌───────────────┬───────────────┬───────────────┐
+ │               │               │
+dbserver-0     dbserver-1     dbserver-2
+ │               │               │
+PVC0            PVC1            PVC2
+ │               │               │
+PV0             PV1             PV2
+Each pod = own storage + own identity
+________________________________________
+Most Important DO180 Exam Points
+Remember these 5:
+1️⃣ StatefulSets used for databases
+2️⃣ Each pod gets its own PVC
+3️⃣ Requires Headless Service
+clusterIP: None
+4️⃣ Pod naming pattern
+statefulset-name-ordinal
+dbserver-0
+dbserver-1
+5️⃣ Deleting StatefulSet does not delete PVC
+
