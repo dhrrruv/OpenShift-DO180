@@ -1,0 +1,66 @@
+Summary: Introduction to Kubernetes and OpenShift
+Containers
+•	A container is a packaged process that includes:
+o	Application code
+o	Runtime
+o	Libraries
+o	Dependencies
+•	This allows the application to run consistently across different environments.
+________________________________________
+Containerization Benefits
+Containerization helps solve common development problems such as:
+•	Code portability – applications run the same way everywhere.
+•	Consistency – development, testing, and production environments behave similarly.
+•	Modularization – applications can be broken into smaller components (microservices).
+•	Easier development and maintenance.
+________________________________________
+Challenges with Large Numbers of Containers
+When many containers run together, it becomes difficult to manage:
+•	Application availability
+•	Networking between containers
+•	Scaling applications
+•	Container deployment and updates
+To solve these problems, a container orchestration platform is required.
+________________________________________
+Kubernetes
+•	Kubernetes is a container orchestration platform.
+•	It helps manage containers at scale.
+Key features include:
+•	Automated deployment
+•	Scaling applications
+•	Load balancing
+•	Self-healing containers
+•	Networking between services
+________________________________________
+Pods
+•	A Pod is the smallest deployable unit in Kubernetes.
+•	A pod can contain:
+o	One container
+o	Or multiple tightly coupled containers
+•	Containers inside a pod share:
+o	Network
+o	Storage
+________________________________________
+Red Hat OpenShift Container Platform (RHOCP)
+•	OpenShift is an enterprise container platform built on top of Kubernetes.
+•	It adds additional enterprise features such as:
+o	Security enhancements
+o	Developer tools
+o	CI/CD integration
+o	Monitoring and logging
+o	Operator management
+________________________________________
+OpenShift Web Console
+Most cluster tasks can be performed using the OpenShift Web Console, including:
+•	Viewing logs
+•	Monitoring metrics
+•	Checking alerts
+•	Accessing terminal sessions for nodes and pods
+•	Managing applications and resources
+The web console provides an easy graphical interface to manage the cluster.
+________________________________________
+✅ Key Idea:
+•	Containers run applications
+•	Kubernetes manages containers
+•	OpenShift adds enterprise tools and a powerful web console on top of Kubernetes
+
