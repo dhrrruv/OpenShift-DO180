@@ -1,0 +1,275 @@
+Guided Exercise: Kubernetes Pod and Service Networks
+Goal of the Lab
+You will:
+1.	Deploy a MySQL database pod
+2.	Create a Kubernetes Service
+3.	Access the database using the service DNS name
+4.	Test pod-to-pod networking
+5.	Use a job to initialize the database
+This demonstrates how pods communicate using services instead of direct IP addresses.
+________________________________________
+Step 1 — Start the Lab Environment
+lab start deploy-services
+Purpose
+This command:
+•	prepares the OpenShift cluster
+•	creates the project deploy-services
+•	creates a file:
+/home/student/DO180/labs/deploy-services/resources.txt
+This file contains helpful commands for the lab.
+________________________________________
+Step 2 — Login to the Cluster
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+Explanation
+Part	Meaning
+oc	OpenShift CLI
+login	authenticate to cluster
+-u developer	username
+-p developer	password
+________________________________________
+Step 3 — Use the Correct Project
+oc project deploy-services
+Projects in OpenShift are namespaces used to organize resources.
+________________________________________
+Step 4 — Create MySQL Deployment
+oc create deployment db-pod --port 3306 \
+--image registry.ocp4.example.com:8443/rhel8/mysql-80
+Explanation
+Parameter	Meaning
+db-pod	deployment name
+--port 3306	MySQL port
+--image	container image
+The container image runs MySQL server.
+________________________________________
+Step 5 — Add Required Environment Variables
+MySQL containers require configuration variables.
+oc set env deployment/db-pod \
+MYSQL_USER=user1 \
+MYSQL_PASSWORD=mypa55w0rd \
+MYSQL_DATABASE=items
+What these variables do
+Variable	Purpose
+MYSQL_USER	database user
+MYSQL_PASSWORD	user password
+MYSQL_DATABASE	database name
+________________________________________
+Step 6 — Confirm Pod is Running
+oc get pods
+Example output:
+db-pod-6ccc485cfc-vrc4r   Running
+Meaning:
+•	Deployment created a pod
+•	MySQL container started successfully
+________________________________________
+Step 7 — Create a Kubernetes Service
+Now expose the deployment.
+oc expose deployment/db-pod
+This creates a ClusterIP service.
+________________________________________
+What the Service Does
+Instead of accessing the pod directly:
+Pod → Pod IP
+We access:
+Pod → Service → Pod
+Service acts as a stable network endpoint.
+________________________________________
+Step 8 — Verify the Service
+oc get service db-pod -o wide
+Example output:
+NAME     TYPE        CLUSTER-IP      PORT   SELECTOR
+db-pod   ClusterIP   172.30.108.92   3306   app=db-pod
+Important fields:
+Field	Meaning
+Cluster-IP	stable internal IP
+Port	service port
+Selector	which pods belong to service
+Selector:
+app=db-pod
+________________________________________
+Step 9 — Verify Pod Labels
+Capture pod name:
+PODNAME=$(oc get pods -o jsonpath='{.items[0].metadata.name}')
+Check labels:
+oc get pod $PODNAME --show-labels
+Example:
+LABELS
+app=db-pod
+This matches the service selector.
+________________________________________
+Step 10 — View Service Endpoints
+oc get endpoints
+Example:
+NAME     ENDPOINTS
+db-pod   10.8.0.85:3306
+Endpoint = pod IP + port used by service.
+________________________________________
+Step 11 — Verify Pod IP
+oc get pods -o wide
+Example:
+db-pod-xxxx   Running   10.8.0.85
+The endpoint matches the pod IP.
+________________________________________
+Step 12 — Delete the Deployment
+oc delete deployment db-pod
+Now check services.
+oc get service
+Output:
+db-pod   ClusterIP
+The service still exists.
+________________________________________
+Step 13 — Check Endpoints
+oc get endpoints
+Output:
+db-pod   <none>
+Because there are no pods running.
+________________________________________
+Step 14 — Recreate the Deployment
+oc create deployment db-pod --port 3306 \
+--image registry.ocp4.example.com:8443/rhel8/mysql-80
+Add environment variables again:
+oc set env deployment/db-pod \
+MYSQL_USER=user1 \
+MYSQL_PASSWORD=mypa55w0rd \
+MYSQL_DATABASE=items
+________________________________________
+Step 15 — Verify Service Automatically Updates
+Check pods:
+oc get pods --selector app=db-pod -o wide
+Example:
+db-pod-xxxxx   Running   10.8.0.90
+Check endpoints:
+oc get endpoints
+Example:
+db-pod   10.8.0.90:3306
+Service automatically updated.
+________________________________________
+Step 16 — Create a Troubleshooting Pod
+Create a pod named shell.
+oc run shell -it \
+--image registry.ocp4.example.com:8443/openshift4/network-tools-rhel8
+This pod contains network troubleshooting tools.
+________________________________________
+Step 17 — Check DNS Configuration
+Inside the pod:
+cat /etc/resolv.conf
+Example:
+search deploy-services.svc.cluster.local svc.cluster.local
+nameserver 172.30.0.10
+Meaning:
+•	Kubernetes internal DNS server handles service names.
+DNS server used:
+•	CoreDNS
+________________________________________
+Step 18 — Test Service DNS
+Run:
+nc -z db-pod.deploy-services 3306
+If connection succeeds:
+Connection success
+Meaning:
+Pod → Service DNS → MySQL Pod
+________________________________________
+Step 19 — Delete Troubleshooting Pod
+Exit shell:
+exit
+Delete pod:
+oc delete pod shell
+________________________________________
+Step 20 — Cross-Namespace Networking
+Create new namespace:
+oc new-project deploy-services-2
+Test DNS connection:
+oc run shell -it --rm \
+--image registry.ocp4.example.com:8443/openshift4/network-tools-rhel8 \
+--restart Never \
+-- nc -z db-pod.deploy-services.svc.cluster.local 3306
+Notice the full DNS name:
+db-pod.deploy-services.svc.cluster.local
+________________________________________
+Step 21 — Return to Original Project
+oc project deploy-services
+________________________________________
+Step 22 — Initialize the Database
+Create a job:
+oc create job mysql-init \
+--image registry.ocp4.example.com:8443/redhattraining/do180-dbinit:v1 \
+-- /bin/bash -c "mysql -uuser1 -pmypa55w0rd \
+--protocol tcp -h db-pod -P3306 items </tmp/db-init.sql"
+This job:
+1.	Connects to MySQL
+2.	Runs SQL script
+3.	Creates a table
+4.	Inserts data
+________________________________________
+Step 23 — Check Job Status
+oc get job
+Example:
+mysql-init   Complete
+________________________________________
+Step 24 — Delete the Job
+oc delete job mysql-init
+________________________________________
+Step 25 — Query the Database
+Create a temporary client pod:
+oc run query-db -it --rm \
+--image registry.ocp4.example.com:8443/redhattraining/do180-dbinit:v1 \
+--restart Never \
+-- mysql -uuser1 -pmypa55w0rd \
+-h db-pod -P3306 items -e 'select * from Item;'
+Output:
+1  Pick up newspaper
+2  Buy groceries
+Meaning the database initialization worked.
+________________________________________
+Step 26 — Pod-to-Pod Troubleshooting
+Find pod IP:
+oc get pods -o wide
+Example:
+10.8.0.69
+Save it:
+POD_IP=$(oc get pod -l app=db-pod \
+-o jsonpath='{.items[0].status.podIP}')
+________________________________________
+Step 27 — Test Direct Pod Connection
+oc run shell --env POD_IP=$POD_IP -it --rm \
+--image registry.ocp4.example.com:8443/openshift4/network-tools-rhel8 \
+--restart Never \
+-- nc -z $POD_IP 3306
+If successful:
+Connection success
+This confirms pod-to-pod networking works.
+________________________________________
+Step 28 — Finish the Lab
+lab finish deploy-services
+This cleans up cluster resources.
+________________________________________
+Key Concepts Learned
+Pods
+•	each pod gets a dynamic IP
+•	pods can restart anytime
+________________________________________
+Services
+Provide:
+•	stable IP
+•	load balancing
+•	service discovery
+________________________________________
+DNS
+Pods access services using:
+service-name
+or
+service-name.namespace
+________________________________________
+Important Commands from This Lab
+Create deployment
+oc create deployment
+Add environment variables
+oc set env
+Create service
+oc expose deployment
+View endpoints
+oc get endpoints
+Run temporary pod
+oc run
+Create job
+oc create job
+
