@@ -1,0 +1,294 @@
+Kubernetes Pod and Service Networks
+Objective
+Enable communication between application pods inside the same Kubernetes cluster using Services.
+________________________________________
+1. Software-Defined Networking (SDN)
+Kubernetes uses Software Defined Networking to manage communication inside the cluster.
+In OpenShift, the default SDN is:
+•	OVN-Kubernetes
+What OVN-Kubernetes Does
+It creates a virtual network across all cluster nodes.
+This allows:
+•	Pod ↔ Pod communication
+•	Pod ↔ Service communication
+•	Containers inside pods to communicate
+But:
+❌ The SDN network cannot be accessed from outside the cluster directly.
+________________________________________
+Virtual Network Concept
+All cluster nodes are connected to a single virtual network.
+So pods behave like virtual machines on the same network.
+They have:
+•	IP addresses
+•	Ports
+•	Routing
+•	Networking stack
+________________________________________
+2. Kubernetes Networking Capabilities
+Kubernetes networking supports four communication types.
+Communication Type	Description
+Container → Container	Containers inside same pod
+Pod → Pod	Pods communicate directly
+Pod → Service	Pods access applications via services
+External → Service	Outside traffic to cluster
+________________________________________
+3. Pod Networking
+Each pod automatically receives an IP address.
+Example:
+Pod A → 10.8.0.1
+Pod B → 10.8.0.2
+Pods can communicate directly using these IPs.
+Example:
+Pod A → http://10.8.0.2
+________________________________________
+Containers Inside a Pod
+All containers inside a pod share the same network stack.
+They share:
+•	IP address
+•	MAC address
+•	network namespace
+Example:
+Container A → localhost:8080
+Container B → localhost:8080
+Containers communicate via:
+localhost
+________________________________________
+4. Flat Network Architecture
+Kubernetes uses a flat network model.
+Meaning:
+•	All pods are in the same subnet
+•	Pods can reach each other without NAT
+Example:
+Node 1 Pod → Node 2 Pod
+Communication works directly.
+________________________________________
+Pod Network CIDR
+Cluster uses a CIDR block like:
+10.128.0.0/14
+This range provides IP addresses for all pods.
+________________________________________
+5. Problem with Pod IP Addresses
+Pods are ephemeral.
+Meaning:
+•	pods can be deleted
+•	pods can be recreated
+•	pods may move to another node
+When this happens:
+❌ Pod IP address changes
+________________________________________
+Example
+Before failure
+Frontend Pod → 10.8.0.1
+Backend Pod → 10.8.0.2
+After backend restart
+Backend Pod → 10.8.0.4
+Now:
+Frontend → 10.8.0.2 ❌ invalid
+The connection breaks.
+________________________________________
+6. Solution: Kubernetes Services
+To fix this problem, Kubernetes uses Services.
+A Service provides:
+✔ Stable IP address
+✔ Load balancing
+✔ Service discovery
+________________________________________
+Service Concept
+Instead of connecting to pod IP:
+Frontend → Backend Service
+Service forwards traffic to backend pods.
+Example:
+Service IP → 172.30.108.92
+Service routes traffic to:
+10.8.0.86
+10.8.0.88
+________________________________________
+Service Advantages
+Feature	Benefit
+Stable IP	does not change
+Load balancing	traffic distributed
+Fault tolerance	failed pods removed
+Scalability	new pods added automatically
+________________________________________
+7. Service Load Balancing
+Example:
+Frontend
+   |
+Backend Service
+  /   |   \
+Pod1 Pod2 Pod3
+Service automatically distributes requests.
+________________________________________
+8. Services Use Labels and Selectors
+Kubernetes services select pods using labels.
+Example pod label:
+app: myapp
+Service selector:
+selector:
+  app: myapp
+Pods with matching label become service endpoints.
+________________________________________
+Example
+Pod labels:
+app: myapp
+Service selector:
+selector:
+  app: myapp
+Matching pods become part of the service.
+________________________________________
+9. Creating a Service
+Command:
+oc expose deployment/<deployment-name>
+Example:
+oc expose deployment/myapp
+This creates a service for the deployment.
+________________________________________
+Important Options
+Selector
+--selector
+Defines which pods belong to the service.
+________________________________________
+Service Port
+--port
+Port where service listens.
+________________________________________
+Target Port
+--target-port
+Container port where traffic goes.
+Example:
+Service Port → 80
+Container Port → 8080
+________________________________________
+Protocol
+--protocol
+Default:
+TCP
+________________________________________
+Service Name
+--name
+Custom service name.
+________________________________________
+10. Viewing Services
+Command:
+oc get service
+Example output:
+NAME      TYPE        CLUSTER-IP      PORT
+db-pod    ClusterIP   172.30.108.92   3306/TCP
+________________________________________
+Show Service Selector
+Command:
+oc get service db-pod -o wide
+Output:
+SELECTOR
+app=db-pod
+Pods must contain this label.
+________________________________________
+11. Viewing Service Endpoints
+Command:
+oc get endpoints
+Example:
+NAME     ENDPOINTS
+db-pod   10.8.0.86:3306,10.8.0.88:3306
+Meaning:
+Service routes traffic to two pods.
+________________________________________
+12. Kubernetes DNS (Service Discovery)
+Kubernetes provides internal DNS for services.
+DNS server used:
+•	CoreDNS
+Every service receives a DNS name.
+________________________________________
+Service FQDN Format
+SERVICE-NAME.PROJECT-NAME.svc.CLUSTER-DOMAIN
+Example:
+db-service.deploy-services.svc.cluster.local
+________________________________________
+Shorter Names
+Inside same project:
+db-service
+Inside cluster:
+db-service.project-name
+________________________________________
+Example resolv.conf inside pod
+nameserver 172.30.0.10
+search deploy-services.svc.cluster.local svc.cluster.local cluster.local
+This allows pods to resolve service names automatically.
+________________________________________
+13. Container Network Interface (CNI)
+Networking in Kubernetes is implemented using CNI plugins.
+CNI = Container Network Interface.
+These plugins configure:
+•	network interfaces
+•	routing
+•	IP allocation
+________________________________________
+Main CNI Plugins in OpenShift
+Plugin	Status
+OVN-Kubernetes	Default
+OpenShift SDN	Older / deprecated
+________________________________________
+14. Open vSwitch
+OVN-Kubernetes uses:
+•	Open vSwitch
+Installed on each node.
+It manages:
+•	routing
+•	packet forwarding
+•	network policies
+________________________________________
+15. Cluster Network Operator
+OpenShift networking is managed by:
+•	OpenShift Cluster Network Operator
+It:
+•	configures cluster networking
+•	installs CNI plugins
+•	manages network configuration
+________________________________________
+Check Network Operator
+Command:
+oc get -n openshift-network-operator deployment/network-operator
+Example:
+network-operator   1/1   Running
+________________________________________
+View Cluster Network Configuration
+Command:
+oc describe network.config/cluster
+Example output:
+Cluster Network CIDR: 10.128.0.0/14
+Service Network CIDR: 172.30.0.0/16
+Network Type: OVNKubernetes
+________________________________________
+Pod vs Service Network
+Network	Purpose
+Pod Network	communication between pods
+Service Network	stable IP for services
+________________________________________
+Summary (Very Important for Exams)
+Pods
+•	each pod gets an IP
+•	IP changes when pod restarts
+•	containers share network stack
+________________________________________
+Services
+•	stable IP
+•	load balancing
+•	service discovery
+•	fault tolerance
+________________________________________
+DNS
+Pods access services using:
+service-name
+instead of IP addresses.
+________________________________________
+Important Commands
+Create service
+oc expose deployment/myapp
+View services
+oc get service
+View endpoints
+oc get endpoints
+Service details
+oc describe service
+Deployment selector
+oc describe deployment
+
