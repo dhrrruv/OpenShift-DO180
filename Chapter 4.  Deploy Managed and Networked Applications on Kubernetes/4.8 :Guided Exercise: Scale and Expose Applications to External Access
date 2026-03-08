@@ -1,0 +1,155 @@
+Guided Exercise: Scale and Expose Applications to External Access
+Objective
+Deploy two web applications and expose them externally using:
+•	OpenShift Route
+•	Kubernetes Ingress
+Then:
+•	Enable sticky sessions
+•	Scale the deployments
+•	Verify load balancing between pods
+________________________________________
+1. Prepare the Lab Environment
+lab start deploy-routes
+This prepares the OpenShift cluster.
+________________________________________
+2. Login to OpenShift
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+________________________________________
+3. Switch to the Project
+oc project web-applications
+________________________________________
+4. Create the First Deployment (satir-app)
+oc create deployment satir-app \
+--image registry.ocp4.example.com:8443/redhattraining/do180-httpd-app:v1
+Verify:
+oc get pods
+oc get deploy/satir-app
+________________________________________
+5. Create the Second Deployment (sakila-app)
+oc create deployment sakila-app \
+--image registry.ocp4.example.com:8443/redhattraining/do180-httpd-app:v1
+Verify:
+oc get pods
+oc get deploy
+________________________________________
+6. Create Services for Both Deployments
+Service for satir-app
+oc expose deployment satir-app \
+--name satir-svc \
+--port 8080 \
+--target-port 8080
+Service for sakila-app
+oc expose deployment sakila-app \
+--name sakila-svc \
+--port 8080 \
+--target-port 8080
+Check services:
+oc get services
+Check endpoints:
+oc get endpoints
+________________________________________
+7. Verify Pod IPs
+oc get pods -o wide
+________________________________________
+8. Create an OpenShift Route (satir-app)
+oc expose service satir-svc --name satir
+Verify:
+oc get routes
+Example route:
+satir-web-applications.apps.ocp4.example.com
+________________________________________
+9. Create a Kubernetes Ingress (sakila-app)
+oc create ingress ingr-sakila \
+--rule "ingr-sakila.apps.ocp4.example.com/*=sakila-svc:8080"
+Verify:
+oc get ingress
+Check routes again:
+oc get routes
+Ingress automatically creates a route.
+________________________________________
+10. Test Access with curl
+Access Ingress
+curl ingr-sakila.apps.ocp4.example.com
+Example output:
+Welcome to Red Hat Training, from sakila-app-xxxx
+Access Route
+curl satir-web-applications.apps.ocp4.example.com
+Example:
+Welcome to Red Hat Training, from satir-app-xxxx
+________________________________________
+11. Scale the Deployments
+Scale sakila-app to 2 pods
+oc scale deployment sakila-app --replicas 2
+Verify:
+oc get pods
+________________________________________
+Scale satir-app to 3 pods
+oc scale deployment satir-app --replicas 3
+Verify:
+oc get pods -o wide
+________________________________________
+12. Verify Load Balancing
+Check endpoints:
+oc get endpoints
+Example:
+sakila-svc   10.8.0.66:8080,10.8.0.67:8080
+satir-svc    10.8.0.65:8080,10.8.0.69:8080,10.8.0.70:8080
+Multiple pod IPs = load balancing active
+________________________________________
+13. Enable Sticky Sessions (Ingress)
+Add cookie affinity:
+oc annotate ingress ingr-sakila \
+ingress.kubernetes.io/affinity=cookie
+________________________________________
+14. Test Load Balancing
+for i in {1..10}; do
+curl ingr-sakila.apps.ocp4.example.com
+done
+Requests go to different pods.
+________________________________________
+15. Save Cookie for Sticky Session
+curl ingr-sakila.apps.ocp4.example.com -c /tmp/cookie_jar
+Check cookie:
+cat /tmp/cookie_jar
+________________________________________
+16. Test Sticky Session
+for i in {1..10}; do
+curl ingr-sakila.apps.ocp4.example.com -b /tmp/cookie_jar
+done
+All responses come from same pod.
+________________________________________
+17. Enable Sticky Sessions for Route
+oc annotate route satir \
+router.openshift.io/cookie_name="hello"
+________________________________________
+18. Test Route Load Balancing
+for i in {1..10}; do
+curl satir-web-applications.apps.ocp4.example.com
+done
+Pods change → load balanced.
+________________________________________
+19. Save Cookie for Route
+curl satir-web-applications.apps.ocp4.example.com \
+-c /tmp/cookie_jar
+Verify:
+cat /tmp/cookie_jar
+________________________________________
+20. Test Sticky Route Session
+for i in {1..10}; do
+curl satir-web-applications.apps.ocp4.example.com -b /tmp/cookie_jar
+done
+Requests stay on same pod.
+________________________________________
+21. Finish the Lab
+lab finish deploy-routes
+________________________________________
+Key Concepts from this Lab
+Concept	Description
+Deployment	Manages application pods
+Service	Internal access to pods
+Route	OpenShift external access
+Ingress	Kubernetes external access
+Scaling	Increasing pod replicas
+Load Balancing	Traffic distributed across pods
+Sticky Session	Client always connects to same pod
+
