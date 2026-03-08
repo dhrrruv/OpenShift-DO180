@@ -1,0 +1,40 @@
+Quiz Answers: Introduction to Kubernetes and OpenShift
+1. What is the installed version for the OpenShift cluster?
+✅ Correct Answer:
+C — 4.18.6
+The lab environment for DO180 4.18 runs OpenShift 4.18.6.
+________________________________________
+2. Which three severity types are available for the alerts in the cluster?
+✅ Correct Answers:
+•	A — Warning
+•	C — Info
+•	E — Critical
+These are the standard alert severity levels used in OpenShift monitoring.
+❌ Incorrect:
+•	Firing → alert state, not severity
+•	Urgent → not used
+•	Oops → not real
+________________________________________
+3. Which three labels are on the thanos-querier route in the openshift-monitoring namespace?
+✅ Correct Answers:
+•	A — app.kubernetes.io/component=query-layer
+•	B — app.kubernetes.io/instance=thanos-querier
+•	D — app.kubernetes.io/version=0.36.1
+❌ Incorrect:
+•	app.kubernetes.io/part-of=openshift-storage → wrong component
+________________________________________
+4. Which two objects are listed as the StorageClasses objects for the cluster?
+✅ Correct Answers:
+•	D — local-volume
+•	E — lvms-vg1
+These are typical storage classes created by the LVM Storage operator in the DO180 lab.
+________________________________________
+5. When All Projects is selected, which three operators are installed in the cluster?
+✅ Correct Answers:
+•	B — MetalLB Operator
+•	D — LVM Storage
+•	E — Package Server
+❌ Incorrect:
+•	MongoDB Operator → not installed by default
+•	Red Hat Fuse → not part of base cluster operators
+
