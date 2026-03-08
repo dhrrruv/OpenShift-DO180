@@ -1,0 +1,316 @@
+Guided Exercise: Create Linux Containers and Kubernetes Pods
+This exercise mainly teaches:
+•	Creating pods
+•	Checking UID/GID security
+•	Viewing logs
+•	Attaching to containers
+•	Inspecting containers on the node
+•	Understanding namespaces
+•	Comparing container vs host OS
+This is done in Red Hat OpenShift, which runs containers using the CRI-O container runtime and manages containers using Kubernetes concepts.
+________________________________________
+1. Prepare the Lab Environment
+Command:
+lab start pods-containers
+Purpose:
+•	Sets up the lab environment
+•	Creates required images, nodes, and cluster configuration
+________________________________________
+2. Login to OpenShift Cluster
+Command:
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+Explanation:
+Part	Meaning
+oc	OpenShift CLI
+login	authenticate to cluster
+-u developer	username
+-p developer	password
+URL	cluster API endpoint
+Result → You are now connected to the OpenShift cluster.
+________________________________________
+3. Create a Project
+Command:
+oc new-project pods-containers
+Explanation:
+A project in OpenShift is similar to a namespace in Kubernetes.
+Purpose:
+•	isolates resources
+•	controls security
+•	manages users and quotas
+Result:
+Now using project "pods-containers"
+________________________________________
+4. Check UID and GID Range
+Command:
+oc describe project pods-containers
+Important output:
+openshift.io/sa.scc.uid-range=1000760000/10000
+openshift.io/sa.scc.supplemental-groups=1000760000/10000
+Meaning:
+Value	Meaning
+1000760000	starting UID
+10000	number of IDs available
+So container users can have IDs:
+1000760000 → 1000769999
+Why?
+OpenShift assigns random non-root users to containers for security.
+________________________________________
+5. Create Pod as Developer
+Command:
+oc run -it ubi9-user --restart Never \
+--image registry.ocp4.example.com:8443/ubi9/ubi \
+-- /bin/bash -c "whoami && id"
+Explanation:
+Part	Meaning
+oc run	create pod
+ubi9-user	pod name
+--restart Never	run once
+--image	container image
+-it	interactive terminal
+whoami	show username
+id	show UID and GID
+Output example:
+1000760000
+uid=1000760000 gid=0(root) groups=0(root),1000760000
+Meaning:
+Field	Meaning
+UID	1000760000
+GID	root group
+groups	root + project group
+Important:
+•	UID = project UID range
+•	Container does NOT run as root
+•	Container is unprivileged
+Security benefit:
+•	Container cannot modify host OS.
+________________________________________
+6. Delete the Pod
+Command:
+oc delete pod ubi9-user
+Purpose:
+Remove the pod after testing.
+________________________________________
+7. Login as Admin
+Command:
+oc login -u admin -p redhatocp
+Admin users have cluster-level privileges.
+________________________________________
+8. Create Pod Again (Admin)
+Command:
+oc run -it ubi9-user --restart Never \
+--image registry.ocp4.example.com:8443/ubi9/ubi \
+-- /bin/bash -c "whoami && id"
+Output:
+root
+uid=0(root) gid=0(root)
+Difference:
+Developer Pod	Admin Pod
+UID = project UID	UID = 0
+Non-root	Root
+Restricted	Privileged
+Meaning:
+Cluster admins can create privileged containers.
+________________________________________
+9. Create Pod to Run Date Command
+Login again as developer:
+oc login -u developer -p developer
+Create pod:
+oc run ubi9-date --restart Never \
+--image registry.ocp4.example.com:8443/ubi9/ubi -- date
+Explanation:
+This pod:
+•	starts container
+•	runs date
+•	exits.
+________________________________________
+10. View Container Logs
+Command:
+oc logs ubi9-date
+Output example:
+Mon Nov 28 15:02:55 UTC 2022
+Meaning:
+•	logs show stdout of container process
+Delete pod:
+oc delete pod ubi9-date
+________________________________________
+11. Create Interactive Pod
+Command:
+oc run ubi9-command -it \
+--image registry.ocp4.example.com:8443/ubi9/ubi -- /bin/bash
+Result:
+bash-5.1$
+You are inside the container shell.
+Exit:
+exit
+________________________________________
+12. View Logs
+Command:
+oc logs ubi9-command
+Output:
+bash-5.1$
+Reason:
+No command executed yet.
+________________________________________
+13. Attach to Running Container
+Command:
+oc attach ubi9-command -it
+Attach to container terminal again.
+Run command:
+while true; do echo $(date); sleep 2; done
+Explanation:
+Loop prints date every 2 seconds.
+Example output:
+Mon Nov 28 15:15:16
+Mon Nov 28 15:15:18
+________________________________________
+14. Check Logs from Another Terminal
+Command:
+oc logs ubi9-command --tail=10
+Meaning:
+Option	Purpose
+--tail=10	show last 10 log lines
+Logs show the date loop output.
+________________________________________
+15. Get Container Name
+Command:
+oc get pod ubi9-command -o json | jq .status.containerStatuses[].name
+Output:
+"ubi9-command"
+Meaning:
+Pod contains one container with same name.
+________________________________________
+16. Find Node Hosting the Pod
+Command:
+oc get pods ubi9-command -o wide
+Example output:
+NODE: master01
+Meaning:
+Pod runs on node master01.
+________________________________________
+17. Debug Node
+Developer cannot debug nodes:
+oc debug node/master01
+Error:
+Forbidden
+Only admins can debug nodes.
+Login as admin and run:
+oc debug node/master01
+Inside debug pod:
+chroot /host
+Meaning:
+Access host OS filesystem and tools.
+________________________________________
+18. Find Container ID
+Command:
+crictl ps --name ubi9-command -o json | jq -r .containers[0].id
+Example output:
+81adbc6222d79ed9...
+Save variable:
+CID=$(crictl ps --name ubi9-command -o json | jq -r .containers[0].id)
+________________________________________
+19. Get Container PID
+Command:
+crictl inspect $CID | grep pid
+Example:
+pid: 365297
+Save:
+PID=365297
+________________________________________
+20. Check Namespaces
+Command:
+lsns -p $PID
+Output shows namespaces:
+Namespace	Purpose
+pid	process isolation
+net	network isolation
+mnt	filesystem isolation
+ipc	inter-process communication
+uts	hostname isolation
+Containers use Linux namespaces for isolation.
+________________________________________
+21. Compare Host vs Container OS
+Host OS:
+cat /etc/redhat-release
+Example:
+Red Hat Enterprise Linux CoreOS 4.18
+Container OS:
+crictl exec -it $CID cat /etc/redhat-release
+Example:
+Red Hat Enterprise Linux 9.6
+Meaning:
+Container runs different OS environment than host.
+________________________________________
+22. Compare Package Versions
+Host:
+rpm -qi libgcc
+Container:
+crictl exec -it $CID rpm -qi libgcc
+Versions may differ.
+This proves containers have separate software environments.
+________________________________________
+23. Exit Debug Pod
+Commands:
+exit
+exit
+This:
+1.	exits host root
+2.	removes debug pod
+________________________________________
+24. Stop Container Loop
+Inside pod terminal:
+Ctrl + C
+exit
+Check pod status:
+oc get pods
+Output:
+ubi9-command Running
+Pod is still running.
+________________________________________
+Key Concepts Learned
+1. Pod Creation
+Command:
+oc run
+Creates containers inside pods.
+________________________________________
+2. Security
+Regular users run containers as:
+random UID
+Admins can run containers as:
+root UID 0
+________________________________________
+3. Logs
+oc logs POD
+Shows container stdout/stderr.
+________________________________________
+4. Attach to Container
+oc attach POD -it
+Connect to container terminal.
+________________________________________
+5. Inspect Containers on Node
+Using CRI-O runtime tools
+Commands:
+crictl ps
+crictl inspect
+________________________________________
+6. Namespace Isolation
+Containers isolate:
+•	processes
+•	networking
+•	filesystem
+•	IPC
+using Linux namespaces.
+________________________________________
+Very Important Commands (Exam Focus)
+oc login
+oc new-project
+oc describe project
+oc run
+oc logs
+oc attach
+oc delete pod
+oc get pods -o wide
+oc debug node
+crictl ps
+crictl inspect
+lsns
+
