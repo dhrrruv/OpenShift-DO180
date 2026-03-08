@@ -1,0 +1,75 @@
+Reserving Compute Capacity for Applications
+Objectives
+Configure an application with resource requests so Kubernetes can make scheduling decisions.
+
+1. Pod Scheduling Overview
+Kubernetes uses the scheduler to place pods onto nodes. This ensures workloads get the compute resources they need and prevents resource contention.
+Scheduler steps:
+1.	Filtering nodes (predicates):
+o	Considers only nodes matching pod requirements, like node labels or resource requests (CPU, memory).
+o	If no node meets the requirements → FailedScheduling event.
+2.	Prioritizing nodes (priorities):
+o	Eligible nodes are scored based on various criteria. Higher score = better candidate.
+3.	Selecting a node:
+o	Node with highest score is chosen. Ties are resolved round-robin.
+o	Pod is scheduled → Scheduled event is generated.
+Note: Scheduler can be customized for advanced needs (not covered here).
+________________________________________
+2. Configuring Compute Resource Requests
+Why:
+•	Requests reserve minimum CPU/memory for pods → scheduler places pods only on nodes that can satisfy the request.
+Units:
+•	CPU: in millicores (m) → 1000 m = 1 CPU core.
+o	Example: 0.1 CPU = 100m
+•	Memory: in bytes, e.g., 1Gi = 1 gibibyte.
+Example in YAML:
+spec:
+  containers:
+  - image: quay.io/redhattraining/hello-world-nginx:v1.0
+    name: hello-world-nginx
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "1Gi"
+Command-line equivalent:
+oc set resources deployment hello-world-nginx --requests cpu=100m,memory=1Gi
+Explanation:
+•	Ensures scheduler only runs pod on a node with ≥100 m CPU and 1Gi memory available.
+________________________________________
+3. Inspecting Cluster Resources
+View node capacity and allocations:
+oc describe node master01
+•	Capacity: Total CPU, memory, storage on the node.
+•	Allocatable: Resources available for pods after system overhead.
+•	Non-terminated pods: Shows CPU/memory requests and limits for each running pod.
+Check actual pod usage (per project):
+oc adm top pods -n <project-name>
+# Example:
+oc adm top pods -n openshift-dns
+Check node resource usage:
+oc adm top nodes
+# or specific node:
+oc adm top node master01
+Theory:
+•	Helps admins see which nodes are overcommitted or underutilized.
+•	Requests + limits help prevent resource starvation for important workloads.
+________________________________________
+4. Key Points / Best Practices
+•	Resource requests: minimum guaranteed resources; scheduler uses these to place pods.
+•	Resource limits: maximum allowed usage; prevents pods from hogging node resources.
+•	Always define requests and limits for production apps to ensure HA and fair scheduling.
+•	Use oc describe node and oc adm top to monitor actual usage.
+•	Millicores allow fractional CPU allocation, useful in multi-tenant clusters.
+________________________________________
+5. Quick Commands Summary
+Task	Command
+Set CPU & memory requests	oc set resources deployment <deployment-name> --requests cpu=100m,memory=1Gi
+View node details	oc describe node <node-name>
+Show pod resource usage in a project	oc adm top pods -n <project-name>
+Show node resource usage	oc adm top nodes
+________________________________________
+✅ Summary:
+•	Pod scheduling is resource-aware.
+•	Requests reserve compute; limits restrict maximum usage.
+•	Proper resource configuration ensures pods are scheduled efficiently and HA is maintained.
+
