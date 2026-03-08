@@ -1,0 +1,161 @@
+📘 Kubernetes & OpenShift CLI and API – Quick Summary
+1️⃣ Ways to Manage an OpenShift Cluster
+You can manage a Red Hat OpenShift Container Platform (RHOCP) cluster using:
+Web Console
+A graphical interface in the browser used for:
+•	Deploying applications
+•	Viewing cluster health
+•	Monitoring resources
+•	Viewing logs and metrics
+Command Line Interfaces (CLI)
+Two main tools:
+CLI	Purpose
+kubectl	Standard Kubernetes CLI
+oc	OpenShift CLI (superset of kubectl)
+Example:
+oc get pods
+kubectl get pods
+oc provides additional OpenShift features.
+________________________________________
+2️⃣ Getting Help for CLI Commands
+Every command supports --help.
+Example:
+oc get --help
+This shows:
+•	command syntax
+•	options
+•	examples
+________________________________________
+3️⃣ Projects (Namespaces)
+A project in OpenShift is the same as a Kubernetes namespace.
+Purpose:
+•	isolate applications
+•	separate environments
+•	control access
+Example:
+oc new-project myapp
+Projects allow:
+•	multi-tenant clusters
+•	resource separation
+________________________________________
+4️⃣ Authentication in OpenShift
+OpenShift supports several login methods.
+Most reliable method:
+Token authentication
+Example:
+oc login --token=<token> --server=<cluster-url>
+Reason:
+Enterprise systems may replace the web console login page with SSO.
+________________________________________
+5️⃣ API Resources
+All Kubernetes and OpenShift objects are API resources.
+Examples:
+•	Pods
+•	Services
+•	Nodes
+•	ConfigMaps
+•	Deployments
+Admin tasks usually involve:
+•	creating resources
+•	viewing resources
+•	modifying resources
+Example:
+oc get pods
+oc create -f pod.yaml
+oc delete pod mypod
+________________________________________
+6️⃣ YAML and JSON Output
+CLI commands can output data in structured formats.
+Formats:
+Format	Use
+YAML	configuration files
+JSON	scripting & automation
+Examples:
+oc get pod mypod -o yaml
+oc get pod mypod -o json
+These formats help with:
+•	automation
+•	scripting
+•	debugging
+________________________________________
+7️⃣ Operators in OpenShift
+Operators automate application lifecycle management.
+Operators can:
+•	install applications
+•	perform health checks
+•	monitor workloads
+•	handle upgrades
+•	maintain desired state
+Example operator resources:
+oc get clusteroperators
+Operators are central to OpenShift automation.
+________________________________________
+8️⃣ Monitoring in OpenShift
+OpenShift includes a built-in monitoring stack.
+Based on:
+Prometheus
+Features:
+•	metrics collection
+•	alerts
+•	cluster health monitoring
+Components include:
+•	Prometheus
+•	Alertmanager
+•	Grafana-style dashboards
+________________________________________
+9️⃣ Monitoring in Web Console
+The OpenShift web console provides:
+•	cluster usage graphs
+•	CPU and memory metrics
+•	pod statistics
+•	resource utilization
+It also allows:
+•	running Prometheus queries
+•	configuring alerts
+•	visualizing metrics
+________________________________________
+🔟 Logs for Troubleshooting
+OpenShift allows viewing logs from:
+•	containers
+•	pods
+Example:
+oc logs mypod
+Logs help diagnose:
+•	application failures
+•	startup problems
+•	configuration errors
+________________________________________
+1️⃣1️⃣ Collecting Cluster Debug Data
+OpenShift provides a command to collect cluster diagnostics.
+Command:
+oc adm must-gather
+This gathers:
+•	cluster configurations
+•	resource definitions
+•	logs
+•	events
+It is commonly used when:
+•	opening Red Hat support cases
+•	debugging cluster issues
+Example:
+oc adm must-gather --dest-dir ./debug
+________________________________________
+⭐ Key Commands to Remember
+Command	Purpose
+oc login	login to cluster
+oc get	view resources
+oc describe	detailed resource info
+oc logs	view container logs
+oc api-resources	list resource types
+oc version	cluster version
+oc adm top	resource usage
+oc adm must-gather	cluster debugging
+________________________________________
+🧠 Key Concepts to Remember
+•	OpenShift can be managed using Web Console or CLI
+•	Projects isolate resources
+•	Operators manage applications automatically
+•	Prometheus monitors cluster health
+•	YAML/JSON outputs enable automation
+•	Logs and must-gather help with troubleshooting
+
