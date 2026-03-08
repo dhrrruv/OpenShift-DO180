@@ -1,0 +1,80 @@
+Limit Compute Capacity for Applications
+Objectives
+Objective
+•	Learn how to set resource limits (CPU and memory) for containers.
+•	Prevent applications from hogging node resources and affecting other workloads.
+•	Understand the difference between requests (for scheduling) and limits (for runtime enforcement).
+________________________________________
+2. Key Concepts
+Requests vs Limits
+Aspect	Request	Limit
+Purpose	Minimum guaranteed resources for scheduling	Maximum resources the container can consume
+Scheduler	Uses request to place pods on eligible nodes	Not used for scheduling
+Runtime	Container can use more than request if available	Container is throttled (CPU) or killed (memory) if exceeds limit
+________________________________________
+Memory Limits
+•	Define the maximum memory a container can consume.
+•	If a container exceeds its memory limit, the OOM killer terminates it.
+•	Kubernetes/OpenShift then restarts the pod, based on the restartPolicy (default Always).
+•	Prevents applications with memory leaks from taking down the node.
+•	Example:
+oc set resources deployment/hello --limits memory=1Gi
+Or in YAML:
+resources:
+  requests:
+    cpu: 100m
+    memory: 500Mi
+  limits:
+    cpu: 200m
+    memory: 1Gi
+•	After a pod is OOMKilled, you can see it in the pod status:
+lastState:
+  terminated:
+    exitCode: 137
+    reason: OOMKilled
+________________________________________
+CPU Limits
+•	Define the maximum CPU a container can consume.
+•	If the container reaches the limit, it slows down, rather than being killed.
+•	Ensures consistent performance across nodes and clusters.
+•	Example:
+oc set resources deployment/hello --limits cpu=200m
+________________________________________
+Viewing Requests, Limits, and Actual Usage
+•	Node level:
+oc describe node master01
+•	Shows requests, limits, and total allocated resources for CPU and memory.
+•	Pod level:
+oc adm top pods -n <project>
+•	Shows real-time CPU and memory usage per pod.
+Example:
+oc adm top pods -n openshift-console
+NAME                         CPU(cores)   MEMORY(bytes)
+console-6689c8589c-bcpb7     1m           48Mi
+downloads-79658645bd-hx649   1m           31Mi
+•	Can also visualize metrics in the web console under the Metrics tab of a deployment.
+________________________________________
+3. Best Practices
+1.	Set requests to expected peak usage.
+o	Ensures the scheduler places pods correctly.
+2.	Set limits to protect nodes.
+o	Memory: prevents crashes due to leaks.
+o	CPU: ensures fair sharing and predictable performance.
+3.	Monitor usage regularly via oc adm top or console metrics.
+4.	Adjust requests and limits based on observed usage patterns.
+________________________________________
+4. Quick Commands Summary
+Task	Command
+Set memory limit	oc set resources deployment/<name> --limits memory=1Gi
+Set CPU limit	oc set resources deployment/<name> --limits cpu=200m
+Set both via YAML	Add resources.requests and resources.limits under container
+View node resources	oc describe node <node-name>
+View pod usage	oc adm top pods -n <project>
+View node usage	oc adm top nodes
+________________________________________
+✅ Summary:
+•	Requests: affect scheduling (minimum guaranteed).
+•	Limits: enforce runtime caps (protect other applications).
+•	Memory over-limit = pod killed, CPU over-limit = pod slowed.
+•	Use monitoring and adjust values for efficient cluster utilization.
+
