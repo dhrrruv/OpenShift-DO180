@@ -1,0 +1,294 @@
+Scale and Expose Applications to External Access
+Objectives
+In this section you learn how to:
+1.	Allocate IP addresses for pods and services
+2.	Enable communication between pods
+3.	Expose applications outside the cluster
+4.	Scale applications using multiple pods
+________________________________________
+1. Why Applications Need Scaling
+Real applications receive many user requests.
+Instead of running one pod, Kubernetes runs multiple identical pods.
+Example:
+Frontend Service
+      |
+   Load Balancer
+   /    |     \
+ Pod1  Pod2  Pod3
+Benefits:
+•	handles more traffic
+•	improves reliability
+•	allows horizontal scaling
+________________________________________
+2. Service IP Addresses
+Each Kubernetes Service gets a stable IP address.
+Important characteristics:
+Feature	Description
+Stable IP	does not change
+Load balancing	distributes traffic
+Service discovery	reachable by DNS
+Service IP example:
+172.30.108.92
+This IP comes from the service network.
+________________________________________
+Pod Network vs Service Network
+Network	Purpose
+Pod Network	communication between pods
+Service Network	stable IP for services
+Example configuration:
+Pod Network CIDR      → 10.128.0.0/14
+Service Network CIDR  → 172.30.0.0/16
+Networking inside the cluster is managed by:
+•	OVN-Kubernetes
+________________________________________
+3. Why Pods Should Not Use Pod IPs
+Pods are temporary (ephemeral).
+Events that change pod IP:
+•	scaling
+•	restart
+•	node failure
+•	new deployment version
+Example:
+Before restart
+Backend Pod → 10.8.0.2
+After restart
+Backend Pod → 10.8.0.5
+Clients would fail if they connect directly to pod IP.
+Solution:
+Client → Service → Pod
+________________________________________
+4. Kubernetes Service Types
+OpenShift provides five service types.
+________________________________________
+4.1 ClusterIP (Default)
+This service is internal only.
+Accessible from:
+Pods inside cluster
+Example:
+Service IP → 172.30.108.92
+Used for:
+•	backend APIs
+•	databases
+•	microservices
+________________________________________
+4.2 LoadBalancer
+Creates an external load balancer from a cloud provider.
+Example:
+Internet → Cloud Load Balancer → Service → Pods
+Use case:
+•	public applications
+•	production environments
+Warning:
+Cloud providers may charge for load balancers.
+________________________________________
+4.3 NodePort
+Exposes service on node IP + port.
+Port range:
+30000 – 32767
+Example:
+Node IP: 192.168.1.20
+Port: 30080
+Access:
+http://192.168.1.20:30080
+Security concern:
+Direct node access increases attack surface.
+________________________________________
+4.4 ExternalIP
+Maps a cluster node virtual IP to a service.
+Example:
+External IP → Node → Pod
+Important:
+Starting with OpenShift 4.18, this is considered legacy.
+Reasons:
+•	security risks
+•	direct node exposure
+________________________________________
+4.5 ExternalName
+Maps Kubernetes service to an external DNS name.
+Example:
+Service → external database
+Example configuration:
+externalName: database.example.com
+DNS returns a CNAME record.
+________________________________________
+5. Exposing Applications Outside the Cluster
+Kubernetes supports two main methods.
+________________________________________
+Method 1 — OpenShift Routes (Preferred)
+OpenShift provides:
+•	OpenShift Routes
+Routes expose applications using hostnames.
+Example:
+https://api.apps.example.com
+Routes are handled by the:
+•	OpenShift Ingress Controller
+The controller uses HAProxy to route traffic.
+________________________________________
+Route Architecture
+Internet
+   |
+Ingress Controller
+   |
+Route Hostname
+   |
+Service
+   |
+Pods
+________________________________________
+Creating a Route
+Command:
+oc expose service api-frontend --hostname api.apps.acme.com
+Explanation:
+Parameter	Meaning
+service	application service
+hostname	public URL
+________________________________________
+Auto-generated Hostnames
+If hostname not specified:
+<route-name>-<project-name>.<default-domain>
+Example:
+frontend-api.apps.example.com
+________________________________________
+Route Configuration Example
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: a-simple-route
+spec:
+  host: api.apps.acme.com
+  to:
+    kind: Service
+    name: api-frontend
+  port:
+    targetPort: 8443
+Important fields:
+Field	Description
+name	route name
+host	public hostname
+service	backend service
+targetPort	service port
+________________________________________
+Delete a Route
+oc delete route a-simple-route
+________________________________________
+6. Kubernetes Ingress
+Standard Kubernetes method for exposing services.
+Resource:
+•	Kubernetes Ingress
+Ingress also provides:
+•	HTTP routing
+•	TLS support
+•	path routing
+________________________________________
+Ingress Example
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend
+spec:
+  rules:
+  - host: www.example.com
+    http:
+      paths:
+      - path: /
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 80
+________________________________________
+Ingress with TLS
+Example TLS configuration:
+tls:
+- hosts:
+  - www.example.com
+  secretName: example-com-tls
+TLS secret stores the SSL certificate.
+________________________________________
+Ingress Command
+Create ingress:
+oc create ingress ingr-sakila \
+--rule="ingr-sakila.apps.ocp4.example.com/*=sakila-service:8080"
+Delete ingress:
+oc delete ingress frontend
+________________________________________
+7. Sticky Sessions
+Some applications require the same user to reach the same pod.
+Example:
+User login sessions
+shopping carts
+This feature is called:
+Session Persistence
+OpenShift implements it using cookies.
+________________________________________
+Configure Sticky Sessions (Ingress)
+oc annotate ingress ingr-example ingress.kubernetes.io/affinity=cookie
+________________________________________
+Configure Sticky Sessions (Route)
+oc annotate route route-example router.openshift.io/cookie_name=myapp
+________________________________________
+Test Sticky Session
+Capture route hostname:
+ROUTE_NAME=$(oc get route route-example -o jsonpath='{.spec.host}')
+Send request and save cookie:
+curl $ROUTE_NAME -k -c /tmp/cookie_jar
+Reuse cookie:
+curl $ROUTE_NAME -k -b /tmp/cookie_jar
+________________________________________
+8. Scaling Applications
+You can increase or decrease the number of pods.
+Command:
+oc scale --replicas=5 deployment/scale
+Result:
+ReplicaSet creates 5 pods
+Do not modify ReplicaSets manually.
+Deployment controller manages them.
+________________________________________
+9. Load Balancing
+Kubernetes services automatically distribute traffic.
+Example:
+Service
+ /   |   \
+Pod1 Pod2 Pod3
+The service load balances requests.
+External traffic is handled by the:
+•	OpenShift Ingress Controller
+________________________________________
+Complete Traffic Flow
+External request flow:
+User
+ |
+DNS
+ |
+Ingress Controller
+ |
+Route / Ingress
+ |
+Service
+ |
+Pods
+________________________________________
+Important Commands for Exams
+Create service
+oc expose deployment myapp
+Create route
+oc expose service myapp
+Scale deployment
+oc scale --replicas=3 deployment/myapp
+View routes
+oc get routes
+View ingress
+oc get ingress
+________________________________________
+Key Concepts Summary
+Pods
+•	run containers
+•	dynamic IPs
+Services
+•	stable IP
+•	load balancing
+Routes / Ingress
+•	expose apps to internet
+Scaling
+•	increase pods using deployments
+
