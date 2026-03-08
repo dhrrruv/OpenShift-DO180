@@ -1,0 +1,98 @@
+1️⃣ Which supported API resource is a member of the oauth.openshift.io api-group?
+Correct answer: A — groupoauthaccesstokens
+Explanation:
+Resources in the oauth.openshift.io API group include things related to authentication such as:
+•	oauthaccesstokens
+•	oauthauthorizationtokens
+•	oauthclients
+Command to verify:
+oc api-resources --api-group oauth.openshift.io
+________________________________________
+2️⃣ Which two fields are members of pod.spec.securityContext?
+Correct answers:
+✅ B — runAsUser
+✅ C — sysctls
+Explanation:
+securityContext defines security settings for pods or containers.
+Common fields include:
+•	runAsUser
+•	runAsGroup
+•	fsGroup
+•	sysctls
+•	seLinuxOptions
+Check using:
+oc explain pod.spec.securityContext
+Incorrect options:
+•	readinessGates → pod spec field
+•	priorityClassName → pod spec scheduling field
+________________________________________
+3️⃣ Which three commands display the conditions of the master01 node?
+Correct answers:
+✅ A — oc get node/master01 -o json | jq '.status.conditions'
+✅ C — oc get node/master01 -o yaml
+✅ D — oc get node/master01 -o json
+Explanation:
+Node conditions are stored in:
+status:
+  conditions:
+Commands that show them:
+oc get node master01 -o yaml
+oc get node master01 -o json
+oc get node master01 -o json | jq '.status.conditions'
+Incorrect option:
+❌ -o wide → only shows additional columns, not conditions
+________________________________________
+4️⃣ Valid condition types for a control plane node
+Correct answers:
+✅ A — PIDPressure
+✅ D — Ready
+Common node conditions include:
+•	Ready
+•	MemoryPressure
+•	DiskPressure
+•	PIDPressure
+•	NetworkUnavailable
+Incorrect:
+•	DiskIOPressure ❌
+•	OutOfMemory ❌
+________________________________________
+5️⃣ Valid options for oc adm top pods
+Correct answers:
+✅ A — -A (all namespaces)
+✅ B — --sum (total usage)
+✅ D — --containers (per-container usage)
+Examples:
+All namespaces:
+oc adm top pods -A
+Show totals:
+oc adm top pods -A --sum
+Show containers:
+oc adm top pods --containers
+Incorrect:
+❌ --pod-selector (not valid)
+________________________________________
+6️⃣ Command to determine internal IP of node
+Correct answer:
+✅ A
+oc get nodes master01 -o=jsonpath='{.status.addresses}{"\n"}'
+Explanation:
+Node IP addresses are stored in:
+status:
+  addresses:
+    - type: InternalIP
+Option B shows nodeInfo, not IP.
+________________________________________
+7️⃣ Command to display only conditions for authentication operator
+Correct answer:
+✅ C
+oc get clusteroperators.config.openshift.io authentication -o json | jq .status.conditions
+Explanation:
+Operator conditions are stored in:
+status:
+  conditions:
+Example condition:
+{
+"type": "Available",
+"status": "True"
+}
+
