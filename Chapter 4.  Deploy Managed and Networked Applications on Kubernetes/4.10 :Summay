@@ -1,0 +1,142 @@
+Kubernetes and OpenShift Summary
+1. Resources and Pods
+In Kubernetes and Red Hat OpenShift (RHOCP), many resources are used to create or manage pods.
+Examples include:
+•	Deployments
+•	Jobs
+•	Services
+•	Routes
+•	Ingress
+Pods are the basic unit that runs containers.
+________________________________________
+2. Resource Creation Methods
+Resources can be created in two ways:
+Imperative Approach
+You tell the cluster exactly what action to perform using commands.
+Example:
+oc create deployment myapp --image=nginx
+Characteristics:
+•	Quick
+•	Command-based
+•	Used for testing or simple tasks
+________________________________________
+Declarative Approach
+You define the desired state in a YAML file, and the cluster ensures it matches that state.
+Example:
+oc apply -f deployment.yaml
+Characteristics:
+•	Configuration-based
+•	Version control friendly
+•	Used in production environments
+________________________________________
+3. oc new-app Command
+The oc new-app command automatically creates resources.
+It uses heuristics (automatic detection) to determine:
+•	Image
+•	Deployment
+•	Service
+•	Build configuration
+Example:
+oc new-app nginx
+This command can automatically create:
+•	Deployment
+•	Service
+•	ImageStream
+________________________________________
+4. Deployments
+A Deployment is the main way to run applications in OpenShift.
+Responsibilities:
+•	Creates pods
+•	Manages replicas
+•	Handles updates
+•	Maintains desired state
+Example:
+oc create deployment myapp --image=nginx
+Deployment manages ReplicaSets, which manage pods.
+________________________________________
+5. Workload API Resources
+Kubernetes provides several workload resources to create pods.
+The choice depends on how the application should run.
+Resource	Purpose
+Deployment	Long-running applications
+Job	One-time task
+CronJob	Scheduled tasks
+DaemonSet	One pod per node
+StatefulSet	Stateful applications
+________________________________________
+6. Job Resource
+A Job runs a task once.
+Example use cases:
+•	Database migrations
+•	Data processing
+•	Batch tasks
+Example command:
+oc create job db-backup --image=backup-image
+Features:
+•	Runs until successful
+•	Retries if the task fails
+•	Stops after a specified retry limit
+________________________________________
+7. Projects and Labels
+Projects
+Projects organize resources inside OpenShift.
+Example:
+oc project my-project
+Projects help isolate:
+•	Applications
+•	Teams
+•	Permissions
+________________________________________
+Labels
+Labels are key-value pairs used to identify resources.
+Example:
+labels:
+  app: frontend
+  env: production
+Labels are used to:
+•	Select pods
+•	Group resources
+•	Manage services
+Example:
+oc get pods -l app=frontend
+________________________________________
+8. Services and Routes
+Service
+A Service provides internal network communication between pods.
+Example:
+oc expose deployment myapp --port=8080
+Service types:
+•	ClusterIP
+•	NodePort
+•	LoadBalancer
+________________________________________
+Route (OpenShift)
+A Route exposes an application to external users.
+It maps:
+DNS hostname → Service → Pod
+Example:
+oc expose service myservice
+Example route:
+myapp.apps.cluster.example.com
+________________________________________
+Network Flow Example
+User Browser
+     │
+     ▼
+   Route
+     │
+     ▼
+   Service
+     │
+     ▼
+     Pod
+________________________________________
+Key Points for Exam Revision
+•	Pods run containers.
+•	Deployments manage pods.
+•	Jobs run one-time tasks.
+•	Resources can be created imperatively or declaratively.
+•	Services provide internal access.
+•	Routes provide external access.
+•	Labels help select and organize resources.
+
