@@ -1,0 +1,396 @@
+Find and Inspect Container Images
+Objectives
+Find containerized applications in container registries and get information about the runtime parameters of supported and community container images.
+
+1. Container Image Overview
+Container
+A container is an isolated runtime environment where an application runs.
+Features:
+•	Runs as an isolated process
+•	Uses Linux namespaces
+•	Does not interfere with host or other containers
+Container Image
+A container image is a packaged application that contains:
+•	application code
+•	libraries
+•	dependencies
+•	runtime environment
+Important:
+•	Image = blueprint
+•	Container = running instance
+Example:
+Container Image → used to create → Container
+You can run many containers from one image.
+Example:
+nginx image
+   ├── container 1
+   ├── container 2
+   └── container 3
+________________________________________
+2. Container Image Registries
+A container registry stores container images.
+Examples:
+Registry	Description
+Docker Hub	most popular public registry
+Quay.io	Red Hat registry platform
+Amazon Elastic Container Registry	AWS container registry
+Red Hat Container Registry	official Red Hat images
+________________________________________
+3. Red Hat Container Registry
+You can browse images in:
+https://catalog.redhat.com
+Benefits of Red Hat images:
+•	Trusted source
+•	No known vulnerabilities
+•	Verified dependencies
+•	Compatible with RHEL
+•	Supported by Red Hat
+•	Run as non-root user
+Example images:
+Apache
+MySQL
+Jenkins
+Python
+Node.js
+________________________________________
+4. Quay.io
+Quay.io is a container registry maintained by Red Hat.
+Features:
+•	host your own images
+•	vulnerability scanning
+•	access control
+•	automated builds
+•	private repositories
+It also provides on-premise registry versions.
+________________________________________
+5. Public vs Private Registries
+Public Registry
+Example:
+•	Docker Hub
+•	Quay.io
+Advantages:
+•	easy to access
+•	free images
+Risks:
+•	malicious code
+•	security vulnerabilities
+•	unknown maintainers
+•	licensing problems
+________________________________________
+Private Registry
+Used by companies.
+Advantages:
+•	secure
+•	controlled access
+•	protects secrets
+•	internal images only
+________________________________________
+6. Container Image Identifier
+A container image has four main identifiers.
+Example image:
+registry.access.redhat.com/ubi10/httpd-24:1
+1 Registry
+registry.access.redhat.com
+Image server.
+________________________________________
+2 Repository Name
+ubi10/httpd-24
+Location of image inside registry.
+________________________________________
+3 Tag
+:1
+Version of image.
+Example:
+nginx:1.24
+nginx:latest
+If tag not specified:
+latest
+is used.
+________________________________________
+4 Image ID / Hash
+Example:
+sha256:4186a1ead13fc307...
+Important properties:
+•	unique identifier
+•	cannot change
+•	ensures image integrity
+________________________________________
+7. Container Image Components
+Container images contain layers + metadata.
+________________________________________
+Layers
+Each instruction in a container build creates a layer.
+Example build:
+FROM ubi
+RUN install apache
+COPY website files
+Layers stack like:
+Layer 3 → app files
+Layer 2 → apache
+Layer 1 → base OS
+Advantages:
+•	faster downloads
+•	reuse layers
+•	smaller updates
+________________________________________
+Metadata
+Metadata stores configuration and instructions.
+Example:
+•	environment variables
+•	commands
+•	exposed ports
+•	working directory
+________________________________________
+8. Container Image Instructions
+Some instructions affect container execution.
+________________________________________
+ENV
+Defines environment variables.
+Example:
+ENV DB_HOST=mysql
+________________________________________
+ARG
+Build-time variables.
+Used during image build.
+________________________________________
+USER
+Defines container user.
+Example:
+USER 1001
+Security best practice → avoid root user.
+In OpenShift:
+•	regular users run containers as random UID
+________________________________________
+ENTRYPOINT
+Defines executable program.
+Example:
+ENTRYPOINT ["python"]
+________________________________________
+CMD
+Default command executed.
+Example:
+CMD ["app.py"]
+Final execution:
+python app.py
+________________________________________
+WORKDIR
+Working directory inside container.
+Example:
+WORKDIR /app
+________________________________________
+9. Metadata Instructions (Documentation Only)
+These do not affect runtime behavior.
+________________________________________
+EXPOSE
+Documents which port the app uses.
+Example:
+EXPOSE 8080
+Does NOT automatically expose the port.
+________________________________________
+VOLUME
+Defines persistent storage.
+Example:
+VOLUME /data
+________________________________________
+LABEL
+Metadata key-value.
+Example:
+LABEL maintainer="admin@example.com"
+________________________________________
+10. Base Images
+A base image is the starting image used to build containers.
+Example:
+FROM ubi9
+The base image determines:
+•	Linux distribution
+•	package manager
+•	libraries
+•	filesystem structure
+________________________________________
+11. Red Hat Universal Base Image
+Red Hat provides Red Hat Universal Base Image (UBI).
+Features:
+•	based on RHEL
+•	free to use
+•	enterprise-grade
+•	OCI compliant
+•	supported by Red Hat
+UBI images work on:
+•	OpenShift
+•	Kubernetes
+•	Docker
+•	cloud environments
+________________________________________
+12. UBI Variants
+Standard
+Includes:
+•	DNF package manager
+•	systemd
+•	utilities
+________________________________________
+Init
+Supports multiple processes in container.
+________________________________________
+Minimal
+Smaller image.
+Uses:
+microdnf
+instead of full DNF.
+________________________________________
+Micro
+Smallest image.
+Contains:
+•	minimal packages
+•	no package manager
+________________________________________
+13. Inspecting Images with Skopeo
+Skopeo is a tool to inspect container images without pulling them.
+Features:
+•	inspect images
+•	copy images
+•	delete images
+•	sync registries
+Install:
+sudo dnf install skopeo
+________________________________________
+14. Login to Registry
+Example:
+skopeo login quay.io
+Credentials stored in:
+$XDG_RUNTIME_DIR/containers/auth.json
+________________________________________
+15. List Image Tags
+Command:
+skopeo list-tags docker://registry.access.redhat.com/ubi10/httpd-24
+Output:
+Tags:
+1
+latest
+10.0
+________________________________________
+16. Inspect Container Image
+Command:
+skopeo inspect docker://registry.access.redhat.com/ubi10/httpd-24
+Shows:
+•	environment variables
+•	ports
+•	commands
+•	image layers
+•	architecture
+Example output info:
+User: 1001
+Entrypoint: container-entrypoint
+Cmd: /usr/bin/run-httpd
+Ports: 8080, 8443
+________________________________________
+17. Copy Container Image
+Command:
+skopeo copy docker://quay.io/skopeo/stable:latest \
+docker://registry.example.com/skopeo:latest
+Copies image between registries.
+________________________________________
+18. Delete Container Image
+Command:
+skopeo delete docker://registry.example.com/skopeo:latest
+Removes image from registry.
+________________________________________
+19. Sync Container Images
+Command:
+skopeo sync --src docker --dest docker \
+registry.access.redhat.com/ubi10/httpd-24 registry.example.com/httpd-24
+Synchronizes images between registries.
+________________________________________
+20. Inspect Images Using OpenShift
+OpenShift CLI command:
+oc image info IMAGE
+Example:
+oc image info registry.access.redhat.com/ubi10/httpd-24
+Shows:
+•	image ID
+•	layers
+•	architecture
+•	commands
+•	environment variables
+Example:
+Digest: sha256:b765...
+________________________________________
+21. Other oc image Commands
+Append Layers
+oc image append
+Add layers to image.
+________________________________________
+Extract Files
+oc image extract
+Copy files from image without running container.
+________________________________________
+Mirror Images
+oc image mirror
+Copy images between registries.
+________________________________________
+22. Why Containers Should Not Run as Root
+Running containers as root is dangerous.
+Risk:
+1.	attacker exploits container
+2.	escapes container
+3.	gains root access to host
+OpenShift solves this by:
+random UID assignment
+for containers.
+________________________________________
+23. Limitations of Non-root Containers
+Some limitations exist:
+•	cannot bind to ports below 1024
+•	cannot use ping
+•	cannot run privileged utilities
+Solution:
+•	use port forwarding
+•	use non-root compatible images
+________________________________________
+Quick Revision Summary
+Container Image
+•	packaged application
+•	immutable
+•	used to create containers
+________________________________________
+Container Registries
+Examples:
+•	Docker Hub
+•	Quay.io
+•	Red Hat Registry
+•	Amazon ECR
+________________________________________
+Image Identifier
+registry/repository:tag
+Example:
+registry.access.redhat.com/ubi10/httpd-24:1
+________________________________________
+Image Components
+•	Layers
+•	Metadata
+________________________________________
+Important Image Instructions
+ENV
+ARG
+USER
+ENTRYPOINT
+CMD
+WORKDIR
+________________________________________
+Metadata Instructions
+EXPOSE
+VOLUME
+LABEL
+________________________________________
+Tools for Images
+skopeo
+oc image
+________________________________________
+Important Commands
+skopeo inspect
+skopeo list-tags
+skopeo copy
+skopeo delete
+skopeo sync
+oc image info
+oc image mirror
+
