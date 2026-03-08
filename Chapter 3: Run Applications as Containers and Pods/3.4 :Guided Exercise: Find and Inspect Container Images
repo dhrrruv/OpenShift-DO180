@@ -1,0 +1,279 @@
+Guided Exercise: Find and Inspect Container Images
+Use a supported MySQL container image to run server and client pods in Kubernetes; also test two community images and compare their runtime requirements.
+Outcomes
+Locate and run container images from a container registry.
+Inspect remote container images and container logs.
+Set environment variables and override entry points for a container.
+Access files and directories within a container.
+
+Find and Inspect Container Images
+1. Start the Lab
+Prepare the environment.
+lab start pods-images
+This command:
+•	resets the environment
+•	prepares the OpenShift cluster
+•	creates required resources.
+________________________________________
+2. Login to the OpenShift Cluster
+Use the oc CLI of Red Hat OpenShift.
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+Login as:
+username: developer
+password: developer
+________________________________________
+3. Create a Project (Namespace)
+Projects isolate resources.
+oc new-project pods-images
+Now all pods will run inside:
+pods-images
+________________________________________
+4. Login to the Container Registry
+Use Skopeo to authenticate.
+skopeo login registry.ocp4.example.com:8443
+Enter:
+Username: developer
+Password: developer
+________________________________________
+5. List Available Image Tags
+Check available versions of nginx.
+skopeo list-tags docker://registry.ocp4.example.com:8443/redhattraining/docker-nginx
+Example output:
+1.23
+1.23-alpine
+1.23-alpine-perl
+1.23-perl
+latest
+These are image tags (versions).
+________________________________________
+6. Create nginx Pod
+oc run docker-nginx \
+--image registry.ocp4.example.com:8443/redhattraining/docker-nginx:1.23
+Check pod status:
+oc get pods
+Output:
+docker-nginx   CrashLoopBackOff
+Meaning:
+pod repeatedly fails
+________________________________________
+7. Check Pod Logs
+Logs help identify the problem.
+oc logs docker-nginx
+Error example:
+mkdir() "/var/cache/nginx/client_temp" failed (13: Permission denied)
+Reason:
+nginx needs root permissions
+________________________________________
+8. Debug the Pod
+Create debug container.
+oc debug pod/docker-nginx
+Check directory permissions.
+ls -la /etc | grep nginx
+ls -la /var/cache | grep nginx
+Result:
+owner = root
+Only root can write.
+________________________________________
+9. Check Running User
+whoami
+Example:
+1000770000
+Meaning:
+OpenShift assigned random non-root UID
+________________________________________
+10. Inspect Image Configuration
+Use OpenShift command.
+oc image info registry.ocp4.example.com:8443/redhattraining/docker-nginx:1.23
+Important section:
+Entrypoint: /docker-entrypoint.sh
+Command: nginx -g daemon off;
+But:
+USER field missing
+Meaning:
+container must run as root
+OpenShift blocks this for security.
+________________________________________
+11. Delete Failed Pod
+oc delete pod docker-nginx
+________________________________________
+12. Inspect Bitnami MySQL Image
+List tags.
+skopeo list-tags docker://registry.ocp4.example.com:8443/redhattraining/bitnami-mysql
+Tags:
+8.0.28
+8.0.29
+8.0.30
+8.0.31
+latest
+________________________________________
+13. Inspect Image Metadata
+oc image info registry.ocp4.example.com:8443/redhattraining/bitnami-mysql:8.0.31
+Important:
+User: 1001
+Meaning:
+non-root container
+So OpenShift allows it.
+________________________________________
+14. Create MySQL Pod
+oc run bitnami-mysql \
+--image registry.ocp4.example.com:8443/redhattraining/bitnami-mysql:8.0.31
+Check:
+oc get pods
+Result:
+CrashLoopBackOff
+________________________________________
+15. Check Logs
+oc logs bitnami-mysql
+Error:
+MYSQL_ROOT_PASSWORD environment variable is empty
+Meaning:
+MySQL requires root password
+________________________________________
+16. Recreate Pod With Environment Variable
+Delete:
+oc delete pod bitnami-mysql
+Create again:
+oc run bitnami-mysql \
+--image registry.ocp4.example.com:8443/redhattraining/bitnami-mysql:8.0.31 \
+--env MYSQL_ROOT_PASSWORD=redhat123
+Check:
+oc get pods
+Now:
+Running
+________________________________________
+17. Check Container UID
+Execute command inside pod.
+oc exec -it bitnami-mysql -- /bin/bash -c "whoami && id"
+Example:
+uid=1000770000
+OpenShift replaces image UID with namespace UID.
+________________________________________
+18. Check Project UID Range
+oc describe project pods-images
+Example:
+openshift.io/sa.scc.uid-range=1000770000/10000
+Meaning:
+pods must run within this UID range
+________________________________________
+19. Inspect Supported Red Hat MySQL Image
+List tags:
+skopeo list-tags docker://registry.ocp4.example.com:8443/rhel9/mysql-80
+Tags include:
+1-224
+1-228
+1-237
+latest
+1
+Tag types
+Floating tags:
+latest
+1
+Fixed tags:
+1-237
+Source tags:
+1-224-source
+________________________________________
+20. Inspect Image Release
+skopeo inspect docker://registry.ocp4.example.com:8443/rhel9/mysql-80:latest
+Better formatted output:
+skopeo inspect --format \
+"Name: {{.Name}}\nDigest: {{.Digest}}\nRelease: {{.Labels.release}}" \
+docker://registry.ocp4.example.com:8443/rhel9/mysql-80:latest
+Output:
+Release: 237
+________________________________________
+21. Run Red Hat MySQL Pod
+oc run rhel9-mysql \
+--image registry.ocp4.example.com:8443/rhel9/mysql-80:1-237
+Check:
+oc get pods
+Result:
+CrashLoopBackOff
+________________________________________
+22. Check Logs
+oc logs rhel9-mysql
+Error:
+MYSQL_USER
+MYSQL_PASSWORD
+MYSQL_DATABASE
+Variables missing.
+________________________________________
+23. Recreate Pod With Variables
+Delete:
+oc delete pod rhel9-mysql
+Create again:
+oc run rhel9-mysql \
+--image registry.ocp4.example.com:8443/rhel9/mysql-80:1-237 \
+--env MYSQL_USER=redhat \
+--env MYSQL_PASSWORD=redhat123 \
+--env MYSQL_DATABASE=worldx
+Now:
+Running
+________________________________________
+24. Inspect MySQL Data Directory
+Inspect image:
+oc image info registry.ocp4.example.com:8443/rhel9/mysql-80:1-237
+Important variable:
+HOME=/var/lib/mysql
+Check inside container:
+oc exec -it rhel9-mysql -- ls -la /var/lib/mysql
+Database directory:
+/var/lib/mysql/data
+Check database:
+oc exec -it rhel9-mysql -- ls /var/lib/mysql/data
+Result:
+worldx
+________________________________________
+25. Get Pod IP
+MYSQL_IP=$(oc get pods rhel9-mysql -o=jsonpath='{.status.podIP}')
+Example:
+10.8.0.69
+________________________________________
+26. Create MySQL Client Pod
+oc run mysqlclient \
+--image registry.ocp4.example.com:8443/rhel9/mysql-80:1-237 \
+--env MYSQL_ROOT_PASSWORD=redhat123
+________________________________________
+27. Connect to MySQL Server
+Run MySQL client:
+oc exec -it mysqlclient \
+-- mysqlshow -u redhat -p -h $MYSQL_IP
+Password:
+redhat123
+Output:
+Databases
+information_schema
+performance_schema
+worldx
+Connection successful.
+________________________________________
+28. Finish Lab
+Clean environment.
+lab finish pods-images
+________________________________________
+Final Concept Summary
+Tools Used
+Tool	Purpose
+oc	manage OpenShift cluster
+skopeo	inspect container images
+oc logs	check container logs
+oc exec	run commands in container
+________________________________________
+Important Debug Steps
+When pod fails:
+1️⃣ Check status
+oc get pods
+2️⃣ Check logs
+oc logs POD
+3️⃣ Inspect image
+oc image info IMAGE
+4️⃣ Debug container
+oc debug pod/POD
+________________________________________
+Key Reasons Pods Fail
+Common causes:
+•	missing environment variables
+•	permission issues
+•	container needs root
+•	wrong configuration
+
