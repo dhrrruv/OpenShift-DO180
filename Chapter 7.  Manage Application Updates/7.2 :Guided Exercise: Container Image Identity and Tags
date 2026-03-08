@@ -1,0 +1,48 @@
+Guided Exercise: Container Image Identity and Tags
+Objectives
+•	Inspect container images by tag and SHA ID.
+•	Deploy applications using image tags or SHA IDs.
+•	Understand the difference between floating tags (like latest) and immutable references (SHA digests).
+•	Observe how OpenShift handles image updates and scaling with different tags.
+________________________________________
+Step-by-Step Workflow
+1.	Setup
+o	Start lab: lab start updates-ids
+o	Login as developer and select the updates-ids project.
+2.	Inspect Images
+o	Check the SHA ID for 1-209 and 1-215 tags:
+oc image info registry.ocp4.example.com:8443/ubi8/httpd-24:1-209 | head
+oc image info registry.ocp4.example.com:8443/ubi8/httpd-24:1-215 | head
+o	Alternative: skopeo inspect docker://registry.ocp4.example.com:8443/ubi8/httpd-24:1-215
+3.	Deploy Using a Tag
+o	Deploy httpd1 using the 1-209 tag:
+oc create deployment httpd1 --image registry.ocp4.example.com:8443/ubi8/httpd-24:1-209
+o	Inspect pod to confirm which node and image it is using (crictl ps on node).
+4.	Deploy Using SHA ID
+o	Retrieve SHA ID in JSON:
+IMAGE=$(oc image info registry.ocp4.example.com:8443/ubi8/httpd-24:1-209 -o json | jq -r .digest)
+o	Deploy httpd2 using the SHA digest:
+oc create deployment httpd2 --image registry.ocp4.example.com:8443/ubi8/httpd-24@$IMAGE
+o	Update deployment to a newer image using the 1-215 tag:
+oc set image deployment/httpd2 httpd-24=registry.ocp4.example.com:8443/ubi8/httpd-24:1-215
+5.	Using the latest Tag
+o	Assign latest to the old image (1-209) and deploy httpd3:
+skopeo copy docker://registry.ocp4.example.com:8443/ubi8/httpd-24:1-209 docker://registry.ocp4.example.com:8443/ubi8/httpd-24:latest
+oc create deployment httpd3 --image registry.ocp4.example.com:8443/ubi8/httpd-24
+o	Reassign latest to a newer image (1-215).
+o	Scale httpd3 to two replicas:
+oc scale deployment/httpd3 --replicas 2
+o	Observe inconsistent pod images:
+	Original pod → old image (SHA b1e3...f876)
+	New pod → new image (SHA 91ad...fd83)
+________________________________________
+Key Takeaways
+•	SHA IDs are immutable and guarantee the exact image version.
+•	Tags like latest are floating; they can point to different images over time, causing inconsistencies in scaled deployments.
+•	Using SHA IDs in production ensures all replicas use the same image version.
+•	Scaling deployments with floating tags can lead to pods running different image versions.
+•	Tools used:
+o	oc image info → inspect tag or SHA ID.
+o	skopeo inspect → inspect remote registry images.
+o	crictl → inspect container images and running pods on nodes.
+
