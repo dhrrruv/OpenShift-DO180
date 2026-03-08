@@ -1,0 +1,55 @@
+Container Image Identity and Tags
+Objectives Relate container image tags to their identifier hashes, 
+and identify container images from pods and containers on Kubernetes nodes.
+
+Container Image Structure
+A full image name has several parts:
+registry.redhat.io/rhel9/nginx-124:9.6
+Component	Example Value	Purpose
+Registry server	registry.redhat.io	Where the image is stored
+Namespace	rhel9	Logical grouping of images
+Name	nginx-124	Image software name (may include version)
+Tag	9.6	Points to a specific version of the image
+•	If the tag is omitted, latest is used by default.
+________________________________________
+Tags: Floating vs Static
+•	Floating Tags: e.g., latest, 1
+o	Can point to different versions over time.
+o	New pods may pull a newer version unintentionally.
+•	Static Tags: e.g., 9.6
+o	Guaranteed not to change.
+o	Ensures application consistency.
+________________________________________
+SHA Image IDs
+•	Each image has a unique SHA-256 digest.
+•	Referring by SHA ensures the image is immutable:
+registry.redhat.io/rhel9/nginx-124@sha256:126903359331...
+•	Retrieve SHA ID from a tag:
+oc image info --filter-by-os linux/amd64 registry.redhat.io/rhel9/nginx-124:9.6
+•	On nodes, list images with their SHA IDs:
+crictl images --digests --no-trunc
+________________________________________
+Image Pull Policy
+Controls how OpenShift pulls images to nodes:
+Policy	Behavior
+IfNotPresent	Uses local image if available; pulls otherwise. (default for tags or SHA)
+Always	Always checks registry for updates. (default for latest tag)
+Never	Expects image already on node; fails if not present.
+________________________________________
+Garbage Collection of Images
+•	Images are not automatically deleted when pods are removed.
+•	Kubelet garbage collector runs every 5 minutes:
+o	Removes oldest unused images if disk >85% full.
+o	Stops when usage <80%.
+•	Check image storage:
+crictl imagefsinfo
+•	Manual removal (less recommended):
+crictl rmi <image>
+________________________________________
+Best Practices
+1.	Prefer static tags or SHA IDs for consistent deployments.
+2.	Use IfNotPresent for stable images, Always for dynamic tags (latest).
+3.	Rely on the garbage collector to manage node disk usage.
+4.	Be aware of multi-architecture images and use --filter-by-os when inspecting.
+
+
