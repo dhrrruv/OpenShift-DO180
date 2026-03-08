@@ -1,0 +1,39 @@
+Comprehensive Review
+Chapter 1 – Introduction to Kubernetes and OpenShift
+•	Kubernetes cluster services: kube-apiserver, kube-scheduler, kube-controller-manager, kubelet, etcd.
+•	OpenShift platform services: Builds, Routes, ImageStreams, Operators, Web Console, OAuth.
+•	Monitoring: Use the OpenShift Web Console to view node health, pod status, and cluster events.
+________________________________________
+Chapter 2 – Kubernetes and OpenShift CLI & APIs
+•	Access cluster: oc login, kubectl or oc CLI.
+•	Query resources: oc get, oc describe, kubectl get --raw /api.
+•	Health checks: Check pods, nodes, deployments, events, and logs.
+________________________________________
+Chapter 3 – Run Applications as Containers and Pods
+•	Pods: Smallest deployable unit, can have one or more containers.
+•	Running apps: Use oc run or oc create pod.
+•	Troubleshooting: oc logs, oc exec, oc describe pod, kubectl top pod.
+________________________________________
+Chapter 4 – Deploy Managed and Networked Applications
+•	Deployments: Manage updates, scaling, and rollouts.
+•	Services: ClusterIP, NodePort, LoadBalancer to expose pods.
+•	Routes: OpenShift way to expose apps externally.
+•	Ingress/egress: Configures traffic routing and access control.
+________________________________________
+Chapter 5 – Manage Storage for Applications
+•	ConfigMaps & Secrets: Externalize configuration from containers.
+•	Persistent Volumes (PV) & Persistent Volume Claims (PVC): Provide persistent storage.
+•	StorageClasses: Enable dynamic provisioning and define reclaim policies.
+•	Volume modes: Filesystem vs Block.
+________________________________________
+Chapter 6 – Configure Applications for Reliability
+•	High Availability: Replicas, Deployment strategies (RollingUpdate, Recreate).
+•	Resilience: Liveness and readiness probes, tolerations, affinity/anti-affinity.
+•	Stateful applications: StatefulSets for non-shared storage per pod.
+________________________________________
+Chapter 7 – Manage Application Updates
+•	Image references: Tags (human-readable) vs SHA IDs (immutable).
+•	Deployment strategies: Rolling updates, Recreate.
+•	OpenShift ImageStreams: Stable references to images, local lookup policy required.
+•	Automatic updates: Image triggers allow deployments to roll out automatically when tags change.
+•	Aliases: Let multiple tags point to the same image for controlled rollouts and safe rollbacks.
