@@ -1,0 +1,111 @@
+Summary: Run Applications as Containers and Pods
+1. Container
+A container is an isolated process that includes everything required to run an application.
+It contains:
+•	application code
+•	runtime environment
+•	system libraries
+•	dependencies
+Example runtimes include Docker and Podman.
+Key idea:
+Container = application + runtime dependencies
+This allows the application to run consistently on any system.
+________________________________________
+2. Pods
+In Kubernetes, containers are grouped into pods.
+A pod:
+•	is the smallest deployable unit
+•	contains one or more containers
+•	represents one application
+Containers inside a pod share:
+•	network (same IP address)
+•	storage volumes
+•	Linux namespaces
+Example structure:
+Pod
+ ├── Container 1
+ └── Container 2
+Usually:
+1 pod = 1 container = 1 application
+________________________________________
+3. Container Images
+A container image is a template used to create containers.
+Image contents include:
+•	application code
+•	runtime environment
+•	libraries
+•	configuration
+•	startup command
+When an image runs, it creates a container instance.
+Process:
+Container Image → Container Instance → Running Application
+________________________________________
+4. Container Registries
+Container images are stored in container registries.
+Registries allow:
+•	storing images
+•	sharing images
+•	distributing images to clusters
+Common registries include:
+•	Red Hat Container Catalog
+•	Red Hat Quay (Quay.io)
+Example image location:
+registry.ocp4.example.com:8443/rhel9/mysql-80
+________________________________________
+5. Inspecting Container Images
+You can inspect container images using CLI tools.
+Two common tools:
+oc image
+Used inside Red Hat OpenShift.
+Example:
+oc image info IMAGE_NAME
+________________________________________
+Skopeo
+Skopeo inspects container images without downloading them.
+Example:
+skopeo inspect docker://registry/image
+Information retrieved includes:
+•	image digest
+•	environment variables
+•	exposed ports
+•	commands
+•	tags
+________________________________________
+6. Containers Are Immutable
+Containers are designed to be immutable.
+Immutable means:
+The container should not be modified after creation.
+If changes are required:
+1.	Update the container image
+2.	Build a new image
+3.	Redeploy the container
+________________________________________
+7. Containers Are Ephemeral
+Containers are also ephemeral.
+Meaning:
+Containers are temporary and can be destroyed and recreated at any time.
+If a container fails:
+Delete container
+Recreate container from image
+________________________________________
+8. Container Troubleshooting Rule
+Avoid modifying running containers.
+Correct approach:
+1 Detect issue
+2 Fix container image
+3 Rebuild image
+4 Redeploy container
+Only modify running containers for debugging purposes.
+________________________________________
+Key Concepts (Exam Quick Review)
+Concept	Meaning
+Container	Isolated application runtime
+Pod	Smallest Kubernetes deployment unit
+Container Image	Template used to create containers
+Registry	Storage for container images
+Immutable	Container should not change
+Ephemeral	Containers are temporary
+________________________________________
+One-Sentence Summary
+OpenShift runs applications as containers inside pods, using container images stored in registries, and containers are designed to be immutable and ephemeral.
+
