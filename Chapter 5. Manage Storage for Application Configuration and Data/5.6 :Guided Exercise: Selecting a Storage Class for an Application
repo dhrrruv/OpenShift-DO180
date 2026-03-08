@@ -1,0 +1,321 @@
+Guided Exercise: Selecting a Storage Class for an Application
+Goal of the Lab
+Deploy applications with persistent storage using different storage classes.
+You will:
+•	Deploy MySQL using block storage
+•	Deploy web apps using NFS shared storage
+•	Share a PVC between applications
+________________________________________
+Step 1: Prepare the Lab Environment
+Run:
+lab start storage-classes
+This command:
+•	Prepares OpenShift cluster
+•	Creates project storage-classes
+•	Ensures storage classes exist
+________________________________________
+Step 2: Login to OpenShift
+oc login -u developer -p developer \
+https://api.ocp4.example.com:6443
+Switch project:
+oc project storage-classes
+Now all resources will be created inside this project.
+________________________________________
+Step 3: Check Available Storage Classes
+Run:
+oc get sc
+Example output:
+StorageClass	Provisioner
+lvms-vg1	topolvm.io
+nfs-storage (default)	nfs-subdir-external-provisioner
+Meaning:
+lvms-vg1
+•	Local block storage
+•	High performance
+•	Good for databases
+nfs-storage
+•	Shared file storage
+•	Good for web servers and shared data
+________________________________________
+Step 4: Inspect Block Storage Class
+Run:
+oc describe sc lvms-vg1
+Important fields:
+Field	Meaning
+Provisioner	topolvm.io
+ReclaimPolicy	Delete
+AllowVolumeExpansion	True
+VolumeBindingMode	WaitForFirstConsumer
+Important description:
+Provides RWO and RWOP Filesystem & Block volumes
+Meaning:
+This storage supports:
+•	Block volumes
+•	Filesystem volumes
+Block volumes give better performance for databases.
+________________________________________
+Step 5: Deploy MySQL Database
+Create MySQL deployment:
+oc create deployment db-pod \
+--port 3306 \
+--image registry.ocp4.example.com:8443/rhel8/mysql-80
+Deployment created.
+________________________________________
+Step 6: Add Environment Variables
+MySQL requires configuration variables.
+Run:
+oc set env deployment/db-pod \
+MYSQL_USER=user1 \
+MYSQL_PASSWORD=redhat123 \
+MYSQL_DATABASE=items
+Meaning:
+Variable	Purpose
+MYSQL_USER	database username
+MYSQL_PASSWORD	user password
+MYSQL_DATABASE	database name
+________________________________________
+Step 7: Verify Pod Running
+oc get pods
+Example output:
+db-pod-b4ccfb74-nn4s5   Running
+MySQL container is now active.
+________________________________________
+Step 8: Create Service for MySQL
+Expose deployment:
+oc expose deployment/db-pod
+This creates a service:
+service/db-pod
+Service allows network access to the database.
+________________________________________
+Step 9: Create PVC with Block Storage
+Now attach storage to MySQL.
+Run:
+oc set volumes deployment/db-pod \
+--add \
+--name lvm-storage \
+--type pvc \
+--claim-mode rwo \
+--claim-size 1Gi \
+--mount-path /var/lib/mysql \
+--claim-class lvms-vg1 \
+--claim-name db-pod-pvc
+Explanation:
+Option	Meaning
+--claim-class lvms-vg1	use block storage
+--claim-size 1Gi	request 1GB storage
+--mount-path /var/lib/mysql	MySQL data directory
+--claim-mode rwo	ReadWriteOnce
+Storage flow becomes:
+MySQL Pod
+   ↓
+PVC (db-pod-pvc)
+   ↓
+StorageClass (lvms-vg1)
+   ↓
+PV created dynamically
+   ↓
+Local block storage
+________________________________________
+Step 10: Check PVC
+Run:
+oc get pvc
+Example:
+NAME       STATUS   VOLUME      CAPACITY
+db-pod-pvc Bound    pvc-72...   1Gi
+Meaning:
+•	PVC created
+•	PV automatically created
+•	Storage bound successfully
+________________________________________
+Step 11: Inspect PVC
+Run:
+oc describe pvc db-pod-pvc
+Important output:
+StorageClass: lvms-vg1
+Access Modes: RWO
+VolumeMode: Filesystem
+Used By: db-pod
+Key point:
+Used By: db-pod
+This confirms MySQL is using this storage.
+________________________________________
+Step 12: Test Database Connection
+Run:
+oc run query-db -it --rm \
+--image registry.ocp4.example.com:8443/rhel8/mysql-80 \
+--restart Never --command \
+-- /bin/bash -c "mysql -uuser1 -predhat123 \
+--protocol tcp -h db-pod -P3306 items \
+-e 'show databases;'"
+Output:
+information_schema
+items
+performance_schema
+Database is working.
+________________________________________
+Step 13: Delete MySQL Deployment
+Delete deployment:
+oc delete deployment db-pod
+Delete service:
+oc delete service db-pod
+________________________________________
+Step 14: Verify PVC Still Exists
+Run:
+oc get pvc
+Output:
+db-pod-pvc Bound
+Important concept:
+PVC still exists even though pod is deleted.
+This proves persistent storage works.
+________________________________________
+Step 15: Delete PVC
+oc delete pvc db-pod-pvc
+Because reclaim policy = Delete
+Result:
+PV deleted automatically
+Storage deleted
+________________________________________
+Step 16: Create Shared Storage PVC (NFS)
+Create file:
+nfs-pvc.yaml
+YAML:
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: nfs-storage
+Create PVC:
+oc create -f nfs-pvc.yaml
+________________________________________
+Step 17: Inspect NFS PVC
+oc describe pvc nfs-pvc
+Important output:
+StorageClass: nfs-storage
+Status: Bound
+Used By: <none>
+Meaning:
+PVC exists but no pod is using it yet.
+________________________________________
+Step 18: Deploy Web Server
+Create web deployment:
+oc create deployment web-pod \
+--port 8080 \
+--image registry.ocp4.example.com:8443/ubi9/httpd-24:1-321
+Create service:
+oc expose deployment web-pod
+Create route:
+oc expose svc web-pod \
+--hostname web-pod.apps.ocp4.example.com
+________________________________________
+Step 19: Verify Web Server
+Run:
+curl http://web-pod.apps.ocp4.example.com
+You will see the Apache test page.
+________________________________________
+Step 20: Mount NFS Storage to Web Server
+Run:
+oc set volumes deployment/web-pod \
+--add \
+--name nfs-volume \
+--claim-name nfs-pvc \
+--mount-path /var/www/html
+Meaning:
+NFS Storage
+     ↓
+Mounted to
+     ↓
+/var/www/html
+Apache serves files from this directory.
+________________________________________
+Step 21: Deploy Second Application
+Create deployment:
+oc create deployment app-pod \
+--port 9090 \
+--image registry.ocp4.example.com:8443/redhattraining/do180-roster
+Create service:
+oc expose deployment app-pod
+Create route:
+oc expose svc app-pod \
+--hostname app-pod.apps.ocp4.example.com
+________________________________________
+Step 22: Mount Same PVC to Second App
+Run:
+oc set volumes deployment/app-pod \
+--add \
+--name nfs-volume \
+--claim-name nfs-pvc \
+--mount-path /var/tmp
+Now both applications share storage.
+NFS Storage
+     ↓
+PVC (nfs-pvc)
+     ↓
+Web Pod → /var/www/html
+App Pod → /var/tmp
+________________________________________
+Step 23: Test Shared Storage
+Open browser:
+http://app-pod.apps.ocp4.example.com
+Enter information and click:
+push
+This creates:
+/var/tmp/People.html
+________________________________________
+Step 24: Verify Shared Storage
+Open:
+http://web-pod.apps.ocp4.example.com/People.html
+The web server displays the file.
+This proves:
+Both pods share the same storage
+________________________________________
+Important Concept Learned
+Kubernetes does NOT protect data integrity.
+Two apps writing same file can cause corruption.
+In this lab:
+app-pod → writer
+web-pod → reader
+So no conflict occurs.
+________________________________________
+Architecture of This Lab
+Block Storage Example
+
+MySQL Pod
+    ↓
+PVC (db-pod-pvc)
+    ↓
+StorageClass (lvms-vg1)
+    ↓
+Local Block Storage
+Shared Storage Example
+
+App Pod ───┐
+           │
+           ▼
+        PVC (nfs-pvc)
+           │
+           ▼
+        NFS Storage
+           ▲
+           │
+Web Pod ───┘
+________________________________________
+Key Commands Summary
+List storage classes
+oc get sc
+Describe storage class
+oc describe sc
+Create deployment
+oc create deployment
+Attach PVC
+oc set volumes
+Check PVC
+oc get pvc
+Inspect PVC
+oc describe pvc
+
