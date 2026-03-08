@@ -1,0 +1,213 @@
+Lab: Run Applications as Containers and Pods
+Objective
+In this lab you will:
+•	Deploy a pod from a container image
+•	Check pod status and events
+•	Troubleshoot a failed pod
+•	Edit pod configuration
+•	Copy debugging files to a pod
+•	Use port forwarding to access a web application
+The application uses PHP running on Apache HTTP Server.
+________________________________________
+1. Start Lab Environment
+Prepare the environment.
+lab start pods-review
+This command ensures:
+•	cluster is running
+•	required files exist
+________________________________________
+2. Login to OpenShift
+Login as developer user.
+oc login -u developer -p developer \
+https://api.ocp4.example.com:6443
+________________________________________
+3. Select Project
+Use the project for the lab.
+oc project pods-review
+________________________________________
+4. Deploy Web Application Pod
+Create a pod named webphp.
+oc run webphp \
+--image=registry.ocp4.example.com:8443/redhattraining/webphp:v1
+Pod created:
+pod/webphp created
+________________________________________
+5. Check Pod Status
+Check status.
+oc get pods
+Output:
+NAME     READY   STATUS
+webphp   0/1     CrashLoopBackOff
+Later:
+STATUS: Error
+Meaning:
+Container keeps crashing
+________________________________________
+6. Check Cluster Events
+View cluster events.
+oc get events
+Important messages:
+Pulled image successfully
+Started container
+Back-off restarting failed container
+Meaning:
+Image pulled successfully
+But container crashes after start
+________________________________________
+7. Check Pod Logs
+View container logs.
+oc logs webphp
+Important error:
+ERROR: unable to bind listening socket
+Permission denied
+Also:
+Error retrieving pid file run/httpd.pid
+Problem identified:
+Permission issue in /run directory
+________________________________________
+8. Create Debug Pod
+Use debug mode to inspect filesystem.
+oc debug pod/webphp
+Shell opens:
+sh-4.4$
+________________________________________
+9. Inspect /run Directory
+List directory permissions.
+ls -la /run
+Output example:
+drwx--x---  root apache httpd
+Meaning:
+Directory permissions do not allow container user access
+________________________________________
+10. Check Container User
+Check user identity.
+id
+Example:
+uid=1000770000
+gid=0(root)
+Meaning:
+•	container runs as random UID
+•	belongs to root group
+This is a security feature in Kubernetes and Red Hat OpenShift.
+Problem:
+Root group lacks permissions
+Exit debug pod.
+exit
+________________________________________
+11. Fix the Application Image
+Developer released a fixed container image:
+webphp:v2
+Edit the pod.
+oc edit pod/webphp
+Change image:
+image: registry.ocp4.example.com:8443/redhattraining/webphp:v2
+Save and exit.
+________________________________________
+12. Verify Pod is Running
+Check status again.
+oc get pods
+Output:
+NAME     READY   STATUS
+webphp   1/1     Running
+________________________________________
+13. Confirm Container User
+Check user again.
+oc exec -it webphp -- id
+Example:
+uid=1000680000
+gid=0(root)
+Still:
+Unprivileged user
+________________________________________
+14. Check Correct Permissions
+Check /run directory.
+oc exec -it webphp -- ls -la /run
+Correct permissions:
+drwxrwx--- root root httpd
+Meaning:
+Root group now has write permission
+Application works correctly.
+________________________________________
+15. Setup Port Forwarding
+Forward local port to pod.
+oc port-forward pod/webphp 8080:8080
+Output:
+127.0.0.1:8080 → pod:8080
+Keep this terminal open.
+________________________________________
+16. Test Web Application
+Open new terminal.
+Retrieve web page.
+curl 127.0.0.1:8080/index.php
+Output:
+<html>
+<body>
+Hello, World!
+</body>
+</html>
+Pod is operational.
+________________________________________
+17. Add Debugging Page
+A debugging script is provided.
+File:
+phpinfo.php
+Purpose:
+Display PHP configuration information
+________________________________________
+18. Copy Debug File to Pod
+Copy the file.
+oc cp ~/DO180/labs/pods-review/phpinfo.php \
+webphp:/var/www/html/phpinfo.php
+Destination directory:
+/var/www/html
+________________________________________
+19. View PHP Debug Page
+Open browser or curl:
+http://127.0.0.1:8080/phpinfo.php
+This displays:
+PHP configuration
+modules
+environment variables
+server information
+Very useful for debugging PHP applications.
+________________________________________
+20. Stop Port Forwarding
+Return to first terminal.
+Press:
+Ctrl + C
+________________________________________
+21. Grade the Lab
+Check solution.
+lab grade pods-review
+Fix errors if needed.
+________________________________________
+22. Finish the Lab
+Clean environment.
+lab finish pods-review
+________________________________________
+Key Troubleshooting Workflow
+Typical debugging process:
+1 oc run pod
+2 oc get pods
+3 oc get events
+4 oc logs
+5 oc debug pod
+6 fix container image
+7 oc edit pod
+8 oc port-forward
+9 oc cp debug files
+________________________________________
+Main Issue in This Lab
+Root cause:
+Permission error in /run/httpd directory
+Container runs with:
+Random UID
+root group
+Fix:
+Give correct permissions to root group
+________________________________________
+✅ Final Result
+•	Pod successfully running
+•	Web server accessible
+•	PHP debugging page added
+
