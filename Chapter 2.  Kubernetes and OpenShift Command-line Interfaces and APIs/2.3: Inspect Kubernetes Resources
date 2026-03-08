@@ -1,0 +1,378 @@
+Inspect Kubernetes Resources
+Objective
+This topic teaches how to:
+•	Query Kubernetes resources
+•	Format command output
+•	Filter specific attributes
+In Kubernetes and OpenShift, everything is managed using API resource objects.
+________________________________________
+1. Kubernetes Resources
+In Kubernetes, resources represent objects inside the cluster.
+Examples:
+•	Pods
+•	Services
+•	Deployments
+•	ConfigMaps
+•	Nodes
+These resources define the desired state of the system.
+Example:
+If you create a deployment with 3 pods, Kubernetes ensures 3 pods are always running.
+________________________________________
+2. View Available Resources
+Command:
+oc api-resources
+Example output:
+NAME            SHORTNAMES   APIVERSION   NAMESPACED   KIND
+pods            po           v1           true         Pod
+services        svc          v1           true         Service
+deployments     deploy       apps/v1      true         Deployment
+replicasets     rs           apps/v1      true         ReplicaSet
+________________________________________
+Meaning of Columns
+Column	Meaning
+NAME	resource name
+SHORTNAMES	shorter command alias
+APIVERSION	API group and version
+NAMESPACED	whether resource belongs to namespace
+KIND	object schema type
+________________________________________
+Example of Shortname
+Instead of:
+oc get configmaps
+you can use:
+oc get cm
+________________________________________
+3. API Groups and Versions
+API Version format:
+<API-GROUP>/<VERSION>
+Example:
+apps/v1
+Meaning:
+Part	Meaning
+apps	API group
+v1	version
+Core resources may appear as:
+v1
+(no API group).
+________________________________________
+4. Namespaced Resources
+Some resources exist inside namespaces.
+Example:
+•	pods
+•	services
+•	deployments
+Namespaces help separate applications.
+In OpenShift:
+Namespace = Project
+There is 1-to-1 mapping.
+________________________________________
+5. Filtering api-resources
+Example command:
+oc api-resources --namespaced=true --api-group apps --sort-by name
+Meaning:
+Option	Purpose
+--namespaced=true	show namespace resources
+--api-group apps	show resources in apps group
+--sort-by name	sort output
+Example output:
+daemonsets
+deployments
+replicasets
+statefulsets
+________________________________________
+6. Understanding Resource Fields
+Command:
+oc explain pod
+Output explains the structure of a resource.
+Example fields:
+apiVersion
+kind
+metadata
+spec
+status
+________________________________________
+Main Fields of Every Resource
+Field	Purpose
+apiVersion	schema version
+kind	resource type
+metadata	identification data
+spec	desired configuration
+status	current runtime state
+________________________________________
+7. spec vs status
+These two fields are very important in Kubernetes architecture.
+spec
+Defines the desired state.
+Example:
+3 replicas required
+status
+Defines the current state.
+Example:
+2 replicas running
+Kubernetes controller will create 1 more pod to match spec.
+________________________________________
+8. Viewing Specific Fields
+Command:
+oc explain pod.spec
+Shows details for:
+pod specification
+Example fields inside spec:
+•	containers
+•	volumes
+•	restartPolicy
+•	nodeSelector
+________________________________________
+9. Major Kubernetes Resource Types
+1. Pods
+pod
+•	smallest deployable unit
+•	contains containers
+•	shares:
+o	IP address
+o	storage
+________________________________________
+2. Services
+svc
+Provide network access to pods.
+Example:
+Client → Service → Pods
+Service load balances traffic.
+________________________________________
+3. ReplicaSets
+rs
+Ensure a fixed number of pod replicas.
+Example:
+3 pods always running
+________________________________________
+4. Persistent Volumes
+pv
+Provide storage for pods.
+Example:
+database storage
+________________________________________
+5. Persistent Volume Claims
+pvc
+A request for storage.
+Pods use PVC to connect with PV.
+________________________________________
+6. ConfigMaps
+cm
+Store configuration data.
+Example:
+DB_HOST
+PORT
+ENVIRONMENT
+________________________________________
+7. Secrets
+Store sensitive data.
+Examples:
+•	passwords
+•	API keys
+•	certificates
+Secrets are encoded (not encrypted).
+________________________________________
+8. Deployments
+deploy
+Manage pods and replicas.
+Features:
+•	scaling
+•	rolling updates
+•	rollback
+________________________________________
+10. OpenShift Specific Resources
+OpenShift adds extra resources.
+________________________________________
+Build
+build
+Process that converts:
+source code → container image
+________________________________________
+BuildConfig
+bc
+Defines:
+•	build source
+•	build strategy
+•	output image
+________________________________________
+Routes
+Routes expose applications outside the cluster.
+Example:
+https://myapp.apps.cluster.com
+Similar to Ingress in Kubernetes.
+________________________________________
+11. Kubernetes Object Structure (YAML)
+Example Pod YAML:
+apiVersion: v1
+kind: Pod
+metadata:
+  name: wildfly
+  namespace: my_app
+  labels:
+    name: wildfly
+spec:
+  containers:
+    - image: quay.io/example/todojee:v1
+      name: wildfly
+      ports:
+        - containerPort: 8080
+________________________________________
+Important YAML Fields
+apiVersion
+apiVersion: v1
+Defines API schema version.
+________________________________________
+kind
+kind: Pod
+Defines resource type.
+________________________________________
+metadata
+Contains identification info:
+metadata:
+  name
+  namespace
+  labels
+________________________________________
+spec
+Defines desired configuration.
+Example:
+containers
+ports
+volumes
+environment variables
+________________________________________
+status
+Generated automatically by Kubernetes.
+Contains:
+•	pod status
+•	IP address
+•	readiness
+•	runtime information
+________________________________________
+12. Labels
+Labels are key-value pairs used to organize resources.
+Example:
+labels:
+  app: example
+  group: developers
+________________________________________
+Use Labels to Filter Resources
+Command:
+oc get pods --selector group=developers
+Output:
+example-pod
+Only pods with that label are shown.
+________________________________________
+13. Viewing Resource Output
+Default command:
+oc get pods
+Example output:
+NAME     READY   STATUS   RESTARTS   AGE
+mypod    1/1     Running  0          2d
+________________________________________
+Wide Output
+Command:
+oc get pods -o wide
+Extra information:
+IP
+NODE
+________________________________________
+14. Describe Command
+Command:
+oc describe pod mypod
+Shows detailed information:
+•	events
+•	container details
+•	errors
+•	resource limits
+Important for troubleshooting.
+⚠ Not recommended for scripting.
+Because output format may change.
+________________________________________
+15. YAML Output
+Command:
+oc get pods -o yaml
+Output format:
+YAML
+Used for:
+•	configuration
+•	scripting
+•	automation
+Example field:
+status.podIP
+________________________________________
+16. Using yq with YAML
+Example:
+oc get pods -o yaml | yq '.items[0].status.podIP'
+Output:
+10.8.0.60
+Meaning:
+•	get first pod
+•	display its IP
+________________________________________
+17. JSON Output
+Command:
+oc get pods -o json
+Example output:
+{
+ "apiVersion": "v1",
+ "items": [...]
+}
+________________________________________
+18. Using jq with JSON
+Example:
+oc get pods -o json | jq '.items[0].status.podIP'
+Output:
+"10.8.0.60"
+________________________________________
+19. Custom Columns Output
+Command:
+oc get pods \
+-o custom-columns=PodName:".metadata.name",\
+IP:"status.podIP"
+Output:
+PodName    IP
+mypod      10.8.0.60
+Useful for structured output.
+________________________________________
+20. JSONPath Queries
+JSONPath extracts fields from JSON.
+Example:
+oc get pods \
+-o jsonpath='{.items[0].metadata.name}'
+Output:
+mypod
+________________________________________
+Example with loop:
+oc get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
+Lists all pod names.
+________________________________________
+21. Go Template Output
+Command:
+oc get pods \
+-o go-template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}'
+Outputs:
+mypod
+mypod2
+Used for advanced formatting.
+________________________________________
+Important Commands to Remember
+oc api-resources
+oc explain pod
+oc explain pod.spec
+oc get pods
+oc get pods -o wide
+oc describe pod
+oc get pods -o yaml
+oc get pods -o json
+oc get pods --selector label=value
+________________________________________
+Core Kubernetes Resource Types to Remember
+Pod
+Service
+ReplicaSet
+Deployment
+ConfigMap
+Secret
+PersistentVolume
+PersistentVolumeClaim
+
