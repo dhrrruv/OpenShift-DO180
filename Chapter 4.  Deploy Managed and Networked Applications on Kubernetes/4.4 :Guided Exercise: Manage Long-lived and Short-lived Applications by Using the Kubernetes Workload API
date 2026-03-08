@@ -1,0 +1,297 @@
+Guided Exercise: Manage Long-lived and Short-lived Applications
+Goal of the Exercise
+You will deploy two types of workloads:
+Workload	Resource Used
+Database server (long-running)	Deployment
+Batch application (short-lived)	Job
+You will learn how to:
+•	Create deployments
+•	Fix pod failures using environment variables
+•	Create and run jobs
+•	View logs of jobs
+•	Understand pod templates in job resources
+________________________________________
+Step 1 — Start the Lab
+Command:
+lab start deploy-workloads
+Purpose
+This command:
+•	prepares the OpenShift cluster
+•	ensures required resources are available
+•	resets the lab environment
+________________________________________
+Step 2 — Login to OpenShift
+Command:
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+Explanation
+Part	Meaning
+oc	OpenShift CLI
+login	authenticate to cluster
+-u developer	username
+-p developer	password
+URL	API server address
+________________________________________
+Step 3 — Create a New Project
+Command:
+oc new-project deploy-workloads
+What is a Project?
+In OpenShift:
+Project = Kubernetes Namespace + access control
+Projects help:
+•	isolate applications
+•	organize resources
+•	manage permissions
+________________________________________
+Step 4 — Create a MySQL Deployment
+Command:
+oc create deployment my-db \
+--image registry.ocp4.example.com:8443/rhel9/mysql-80:1
+Explanation
+Part	Meaning
+create deployment	create a deployment resource
+my-db	deployment name
+--image	container image used
+This deployment tries to run a MySQL database server.
+________________________________________
+Step 5 — Check Deployment Status
+Command:
+oc get deployments
+Example output:
+NAME    READY   UP-TO-DATE   AVAILABLE
+my-db   0/1     1            0
+Meaning
+The deployment created a pod but it is not ready.
+________________________________________
+Step 6 — Check Pod Status
+Command:
+oc get pods
+Example output:
+my-db-xxxxx   CrashLoopBackOff
+CrashLoopBackOff Meaning
+The container:
+•	starts
+•	crashes
+•	Kubernetes restarts it
+•	crashes again
+So it loops continuously.
+________________________________________
+Step 7 — Check Pod Logs
+Command:
+oc logs deploy/my-db
+Output shows:
+You must specify:
+MYSQL_USER
+MYSQL_PASSWORD
+MYSQL_DATABASE
+or MYSQL_ROOT_PASSWORD
+Reason for Failure
+The MySQL container requires environment variables.
+Without them the container cannot start.
+________________________________________
+Step 8 — Fix Deployment (Add Environment Variables)
+Command:
+oc set env deployment/my-db \
+MYSQL_USER=developer \
+MYSQL_PASSWORD=developer \
+MYSQL_DATABASE=sampledb
+Explanation
+Part	Meaning
+set env	add environment variables
+deployment/my-db	target deployment
+variables	database configuration
+These variables configure MySQL:
+MYSQL_USER
+MYSQL_PASSWORD
+MYSQL_DATABASE
+________________________________________
+Step 9 — Verify Deployment Works
+Command:
+oc get deployments
+Output:
+NAME   READY   AVAILABLE
+my-db  1/1     1
+Meaning:
+The pod is running successfully.
+________________________________________
+Step 10 — Get Pod IP Address
+Command:
+oc get pods -o wide
+Example output:
+NAME                STATUS    IP
+my-db-xxxxxx        Running   10.8.0.91
+-o wide
+Shows additional information:
+•	IP address
+•	node
+•	container details
+________________________________________
+Step 11 — Store Pod IP in Variable
+Command:
+DB_IP=$(oc get pods my-db-xxxxx \
+-o=jsonpath='{.status.podIP}')
+What this does
+Stores pod IP in variable:
+$DB_IP
+Used later to connect to database.
+________________________________________
+Step 12 — Test MySQL Server
+Command:
+oc run -it db-test --restart=Never \
+--image registry.ocp4.example.com:8443/rhel9/mysql-80:1 \
+-- mysql sampledb -h $DB_IP -u developer --password=developer \
+-e "select 1;"
+Explanation
+Part	Meaning
+oc run	create temporary pod
+-it	interactive terminal
+--restart=Never	run once
+mysql	MySQL client
+select 1	test query
+Output:
+| 1 |
+| 1 |
+Meaning:
+Database server works correctly.
+________________________________________
+Step 13 — Delete the Pod
+Command:
+oc delete pod -l app=my-db
+What happens?
+Deployment controller detects:
+replicas < desired replicas
+So Kubernetes creates a new pod automatically.
+________________________________________
+Step 14 — Verify Pod Recreation
+Command:
+oc get pod -l app=my-db
+Output:
+my-db-newpod   Running
+Meaning:
+Deployment self-healing works.
+________________________________________
+Step 15 — Create a Job
+Now we deploy a short-lived batch workload.
+Command:
+oc create job date-loop \
+--image registry.ocp4.example.com:8443/ubi9/ubi \
+-- /bin/bash -c "for i in {1..30}; do date; done"
+Explanation
+Part	Meaning
+create job	create batch job
+date-loop	job name
+image	container image
+script	command executed
+Script:
+for i in {1..30}
+do
+date
+done
+Meaning:
+Print date 30 times.
+________________________________________
+Step 16 — Inspect Job YAML
+Command:
+oc get job date-loop -o yaml
+Important parts:
+Command
+command:
+- /bin/bash
+- -c
+- for i in {1..30}; do date; done
+Image
+image: ubi9/ubi
+Restart Policy
+restartPolicy: Never
+Meaning:
+Job pod runs once and exits.
+________________________________________
+Step 17 — Check Job Status
+Command:
+oc get jobs
+Output:
+NAME       COMPLETIONS
+date-loop  1/1
+Meaning:
+Job completed successfully.
+________________________________________
+Step 18 — View Job Logs
+Command:
+oc logs job/date-loop
+Example output:
+Fri Nov 18 14:50:56
+Fri Nov 18 14:50:59
+Fri Nov 18 14:51:01
+Logs show date printed repeatedly.
+________________________________________
+Step 19 — Delete Job Pod
+Command:
+oc delete pod -l job-name=date-loop
+Deletes the pod created by job.
+________________________________________
+Step 20 — Verify Pod is NOT Recreated
+Command:
+oc get pod -l job-name=date-loop
+Output:
+No resources found
+Why?
+Because:
+Job already completed
+Kubernetes does not restart completed jobs.
+________________________________________
+Step 21 — Check Job Status
+Command:
+oc get job -l job-name=date-loop
+Output:
+date-loop   1/1
+Meaning:
+Job status remains completed.
+________________________________________
+Step 22 — Finish the Lab
+Command:
+lab finish deploy-workloads
+Purpose:
+•	clean resources
+•	reset cluster environment
+________________________________________
+Key Concepts Learned
+Deployment (Long-Lived Workload)
+Features:
+•	manages pods continuously
+•	self-healing
+•	maintains replica count
+Example:
+Web servers
+APIs
+Databases
+________________________________________
+Job (Short-Lived Workload)
+Features:
+•	runs once
+•	completes and stops
+•	not restarted after success
+Example:
+backups
+data processing
+batch scripts
+________________________________________
+Deployment vs Job
+Feature	Deployment	Job
+Runs continuously	✅	❌
+Self-healing	✅	❌
+One-time task	❌	✅
+Pod restart after success	✅	❌
+________________________________________
+Important Commands for This Lab
+Create deployment:
+oc create deployment
+Set environment variables:
+oc set env deployment
+View logs:
+oc logs
+Create job:
+oc create job
+View job status:
+oc get jobs
+Delete pods by label:
+oc delete pod -l label=value
+
