@@ -1,178 +1,283 @@
-Guided Exercise: Manage Non-shared Storage with Stateful Sets
-Deploy a replicated web server by using a deployment and verify that all web server pods share a PV; 
-and deploy a replicated MySQL database by using a stateful set and verify that each database instance gets a dedicated PV.
-Outcomes
-Deploy a web server with persistent storage.
-Add data to the persistent storage.
-Scale the web server deployment and observe the data that is shared with the replicas.
-Create a database server with a headless service and a stateful set by using YAML manifest files.
-Verify that each instance from the stateful set has a persistent volume claim.
-
-1️⃣ Goal of the Exercise
-You are asked to:
-1.	Deploy a replicated web server (stateless) using a Deployment sharing a Persistent Volume (PV).
-2.	Deploy a replicated MySQL database using a StatefulSet, ensuring each database pod gets its own PV.
-Key difference:
-•	Deployment + shared PV: Multiple replicas share the same data.
-•	StatefulSet + dedicated PVs: Each replica gets its own storage, keeping unique data.
+Guided Exercise: Manage Non-shared Storage with StatefulSets
+Goal of This Lab
+You perform two experiments:
+1️⃣ Deployment (Shared Storage)
+Deploy a web server and verify:
+•	All pods share the same Persistent Volume
+2️⃣ StatefulSet (Non-shared Storage)
+Deploy MySQL database and verify:
+•	Each pod gets its own Persistent Volume
 ________________________________________
-2️⃣ Step 1: Prepare the Environment
-Command:
-lab start storage-statefulsets
-•	What it does: Sets up the OpenShift project and ensures all lab resources (like storage classes) are ready.
-________________________________________
-3️⃣ Step 2: Log in to OpenShift Cluster
+PART 1 — Deploy Web Server with Shared Storage
+Step 1: Login to OpenShift
 oc login -u developer -p developer https://api.ocp4.example.com:6443
+Switch project:
 oc project storage-statefulsets
-•	oc login: Log in as a user to OpenShift.
-•	oc project: Switches to the correct project (namespace) for this lab.
 ________________________________________
-4️⃣ Step 3: Deploy Web Server with Deployment
-oc create deployment web-server --image registry.ocp4.example.com:8443/redhattraining/hello-world-nginx:latest
-•	Deployment: Manages stateless pods. Can scale up/down easily.
-•	Web server pods are stateless initially, meaning they don’t store unique data.
-Verify deployment:
+Step 2: Create Deployment
+Create a web server deployment
+oc create deployment web-server \
+--image registry.ocp4.example.com:8443/redhattraining/hello-world-nginx:latest
+Check deployment:
 oc get deployment
-•	Shows pods status, replicas, etc.
+Example output:
+web-server   1/1   Running
 ________________________________________
-5️⃣ Step 4: Add a Persistent Volume Claim (PVC) to the Deployment
+Step 3: Add Persistent Volume
+Create PVC and mount it in deployment.
 oc set volumes deployment/web-server \
-  --add --name web-pv --type persistentVolumeClaim --claim-mode rwo \
-  --claim-size 5Gi --mount-path /usr/share/nginx/html --claim-name web-pv-claim
-•	oc set volumes: Attaches a volume to an existing deployment.
-•	PVC: Requests persistent storage from the cluster.
-•	RWO (ReadWriteOnce): Can be mounted by a single pod at a time—but for NFS, multiple pods can access.
-•	Mount path: /usr/share/nginx/html → default web content location for Nginx.
-•	Claim name: web-pv-claim → PV gets bound here.
-Check pod status:
+--add \
+--name web-pv \
+--type persistentVolumeClaim \
+--claim-mode rwo \
+--claim-size 5Gi \
+--mount-path /usr/share/nginx/html \
+--claim-name web-pv-claim
+This command automatically:
+•	Creates PVC
+•	Creates PV (via storage class)
+•	Mounts volume to container
+Mount path:
+/usr/share/nginx/html
+This is where Nginx web content is stored.
+________________________________________
+Step 4: Verify Pod
+List pods:
 oc get pods -l app=web-server
-•	Ensures deployment recreates pod with the PVC attached.
-Verify PVC:
+Example:
+web-server-5fb94fd568-48n8t
+________________________________________
+Step 5: Verify PVC
+Check PVC:
 oc get pvc
-•	STATUS=Bound → PV successfully provisioned from storage class.
+Example:
+web-pv-claim   Bound   5Gi
+Bound means:
+PVC → connected to PV
 ________________________________________
-6️⃣ Step 5: Add Data to Shared PVC
-oc exec -it pod/<pod-name> -- /bin/bash -c 'echo "Hello, World from ${HOSTNAME}" > /usr/share/nginx/html/index.html'
-•	oc exec: Runs commands inside the pod.
-•	Adds a file with pod name to show shared storage.
-Check file:
-oc exec -it pod/<pod-name> -- cat /usr/share/nginx/html/index.html
+Step 6: Verify Pod Uses PVC
+Run:
+oc get pod web-server-XXXXX -o json | jq .spec.volumes[0].persistentVolumeClaim.claimName
+Output:
+"web-pv-claim"
+Meaning:
+Pod → using web-pv-claim
 ________________________________________
-7️⃣ Step 6: Scale Deployment
+Step 7: Add Data to PVC
+Write content into shared storage.
+oc exec -it pod/web-server-XXXXX -- /bin/bash -c \
+'echo "Hello, World from ${HOSTNAME}" > /usr/share/nginx/html/index.html'
+Now check content:
+oc exec -it pod/web-server-XXXXX -- cat /usr/share/nginx/html/index.html
+Example:
+Hello, World from web-server-5fb94fd568-48n8t
+________________________________________
+Step 8: Scale Deployment
+Increase replicas:
 oc scale deployment web-server --replicas 2
+Check pods:
 oc get pods
-•	Adds another pod (replica).
-•	Both pods share the same PV, so new pod sees the same data as first pod.
-Check file on new pod:
-oc exec -it pod/<new-pod-name> -- cat /usr/share/nginx/html/index.html
-Observation: Both pods show the same data, because the PV is shared.
+Example:
+web-server-48n8t
+web-server-rqvpb
 ________________________________________
-8️⃣ Step 7: Deploy Database with StatefulSet
-Why StatefulSet?
-•	Stateful applications need unique identity and persistent storage.
-•	Examples: Databases like MySQL, Cassandra.
-•	Each pod gets its own PV, unlike Deployment.
-Step 7a: Headless Service
-File: service-db.yml
+Step 9: Verify Shared Storage
+Check file in both pods.
+Pod 1:
+oc exec -it pod/web-server-48n8t -- cat /usr/share/nginx/html/index.html
+Pod 2:
+oc exec -it pod/web-server-rqvpb -- cat /usr/share/nginx/html/index.html
+Both show:
+Hello, World from web-server-48n8t
+Meaning:
+Both pods use SAME PV
+Architecture:
+Deployment
+     │
+ ┌───────┬───────┐
+ │       │
+Pod1    Pod2
+ │       │
+ └── Shared PV ──┘
+________________________________________
+PART 2 — Deploy Database Using StatefulSet
+Now we deploy MySQL with StatefulSet.
+Each pod will have its own storage.
+________________________________________
+Step 10: Create Headless Service
+Edit file:
+service-db.yml
+Important line:
+clusterIP: None
+Full example:
 apiVersion: v1
 kind: Service
 metadata:
   name: mysql-svc
 spec:
   clusterIP: None
-  ports:
-  - port: 3306
-    name: mysql
   selector:
     app: database
-•	Headless Service (clusterIP: None): Allows pods to have stable DNS names, e.g., dbserver-0.mysql-svc.
-•	Essential for StatefulSets to reach each pod individually.
+  ports:
+  - port: 3306
 Create service:
 oc create -f service-db.yml
+Verify:
+oc get svc
+You will see:
+mysql-svc   ClusterIP   None
+This is a Headless Service.
 ________________________________________
-Step 7b: StatefulSet Definition
-File: statefulset-db.yml
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: dbserver
-spec:
-  replicas: 2
-  serviceName: mysql-svc
-  selector:
-    matchLabels:
-      app: database
-  template:
-    metadata:
-      labels:
-        app: database
-    spec:
-      containers:
-      - name: dbserver
-        image: registry.ocp4.example.com:8443/redhattraining/mysql-app:v1
-        ports:
-        - containerPort: 3306
-        env:
-        - name: MYSQL_USER
-          value: "redhat"
-        - name: MYSQL_PASSWORD
-          value: "redhat123"
-        - name: MYSQL_DATABASE
-          value: "sakila"
-        volumeMounts:
-        - name: data
-          mountPath: /var/lib/mysql
-  volumeClaimTemplates:
-  - metadata:
-      name: data
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: "lvms-vg1"
-      resources:
-        requests:
-          storage: 1Gi
-•	volumeClaimTemplates: Ensures each pod gets its own PVC.
-•	Mount path: /var/lib/mysql → MySQL data directory.
-•	Each pod is numbered: dbserver-0, dbserver-1.
-Create StatefulSet:
+Step 11: Create StatefulSet
+Edit file:
+statefulset-db.yml
+Important sections:
+Replicas
+replicas: 2
+________________________________________
+Volume Mount
+volumeMounts:
+- name: data
+  mountPath: /var/lib/mysql
+________________________________________
+VolumeClaimTemplate
+volumeClaimTemplates:
+- metadata:
+    name: data
+  spec:
+    accessModes: ["ReadWriteOnce"]
+    storageClassName: "lvms-vg1"
+    resources:
+      requests:
+        storage: 1Gi
+This creates:
+PVC for every pod automatically
+________________________________________
+Step 12: Create StatefulSet
 oc create -f statefulset-db.yml
 Check pods:
-watch oc get pod -l app=database -o wide
+watch oc get pods -l app=database
+Example:
+dbserver-0
+dbserver-1
+Notice:
+Ordered pod names
 ________________________________________
-9️⃣ Step 8: Verify Persistent Storage
+Step 13: Verify Endpoints
+oc get endpoints
+Example:
+mysql-svc   10.8.0.112:3306,10.8.0.113:3306
+These are the pod IPs.
+________________________________________
+Step 14: Test Pod DNS
+StatefulSet pods get stable DNS.
+Format:
+podname.servicename
+Example:
+dbserver-1.mysql-svc
+Test:
+oc rsh dbserver-1 curl -v telnet://dbserver-1.mysql-svc:3306
+DNS resolves directly to dbserver-1.
+________________________________________
+Step 15: Verify PVCs
+Run:
 oc get pvc -l app=database
-•	Shows unique PVC for each pod: data-dbserver-0, data-dbserver-1.
-Check PVC mount inside pod:
+Output:
+data-dbserver-0
+data-dbserver-1
+Each pod has its own PVC.
+Architecture:
+StatefulSet
+      │
+ ┌───────────┬───────────┐
+ │           │
+dbserver-0  dbserver-1
+ │           │
+PVC0        PVC1
+ │           │
+PV0         PV1
+________________________________________
+Step 16: Verify PVC Used by Each Pod
+Check pod 0:
 oc get pod dbserver-0 -o json | jq .spec.volumes[0].persistentVolumeClaim.claimName
-•	Confirms pod mounts correct PV.
+Output:
+data-dbserver-0
+Check pod 1:
+data-dbserver-1
 ________________________________________
-10️⃣ Step 9: Add Data to Each DB Pod
-oc exec -it pod/dbserver-0 -- mysql -uredhat -predhat123 sakila -e 'create table items (count INT);'
-oc exec -it pod/dbserver-1 -- mysql -uredhat -predhat123 sakila -e 'create table inventory (count INT);'
-•	Each pod stores unique data, no automatic replication.
-Check tables:
-oc exec -it pod/dbserver-0 -- mysql -uredhat -predhat123 sakila -e 'show tables;'
-oc exec -it pod/dbserver-1 -- mysql -uredhat -predhat123 sakila -e 'show tables;'
+Step 17: Add Database Tables
+Pod 0:
+oc exec -it pod/dbserver-0 -- /bin/bash -c \
+"mysql -uredhat -predhat123 sakila -e 'create table items (count INT);'"
+Pod 1:
+oc exec -it pod/dbserver-1 -- /bin/bash -c \
+"mysql -uredhat -predhat123 sakila -e 'create table inventory (count INT);'"
 ________________________________________
-11️⃣ Step 10: Pod Deletion & PVC Persistence
+Step 18: Verify Data is Different
+Check pod 0:
+show tables;
+Output:
+items
+Check pod 1:
+inventory
+Meaning:
+Pods DO NOT share storage
+________________________________________
+Step 19: Delete Pod
+Delete pod:
 oc delete pod dbserver-0
-oc get pods -l app=database
-•	New pod dbserver-0 is recreated with same PVC.
-•	Data persists because PVC is not deleted with pod.
+Check pods:
+oc get pods
+New pod appears:
+dbserver-0
 ________________________________________
-✅ Key Takeaways (Theory + Practice)
-Concept	Deployment (Web)	StatefulSet (DB)
-Pod Identity	Ephemeral, interchangeable	Stable, numbered (-0, -1)
-PV	Shared (optional)	Dedicated for each pod
-Data	Shared if PV is shared	Unique per pod
-DNS/Service	ClusterIP service	Headless service for stable DNS
-Use case	Stateless apps (web servers)	Stateful apps (databases)
-Commands Summary:
-•	oc create deployment → create deployment
-•	oc set volumes → attach PVC to deployment
-•	oc scale deployment → scale replicas
-•	oc create -f → apply YAML (Service, StatefulSet)
-•	oc exec -it pod -- <cmd> → execute command inside pod
-•	oc get pods/pvc/deployment/statefulset → check resources
-•	oc delete pod → delete pod (test PV persistence)
+Step 20: Verify Data Persists
+Check tables again:
+show tables;
+Output:
+items
+Meaning:
+PVC preserved data
+Even though pod was deleted.
+________________________________________
+Final Comparison (VERY IMPORTANT)
+Feature	Deployment	StatefulSet
+Storage	Shared	Separate
+Pod Names	Random	Ordered
+PVC	Single	One per pod
+Use Case	Web apps	Databases
+________________________________________
+Final Architecture
+Deployment
+web-server deployment
+        │
+   ┌─────────┬─────────┐
+   │         │
+pod1       pod2
+   │         │
+   └── Shared PV ──┘
+________________________________________
+StatefulSet
+dbserver statefulset
+        │
+   ┌─────────┬─────────┐
+   │         │
+dbserver-0  dbserver-1
+   │         │
+ PVC0       PVC1
+   │         │
+ PV0        PV1
+________________________________________
+DO180 Exam Points from This Lab
+Remember these 5:
+1️⃣ Deployment → shared storage
+2️⃣ StatefulSet → separate storage
+3️⃣ Headless service required
+clusterIP: None
+4️⃣ Pod names are stable
+dbserver-0
+dbserver-1
+5️⃣ Each StatefulSet pod gets its own PVC
+data-dbserver-0
+data-dbserver-1
 
