@@ -1,0 +1,225 @@
+Guided Exercise: Troubleshoot Containers and Pods
+Objective
+In this lab you learn to:
+•	Investigate why a pod fails to start
+•	Check logs and events
+•	Fix the container image
+•	Copy files into a pod
+•	Access the pod database
+•	Use port forwarding
+The application used is MySQL.
+________________________________________
+1. Prepare the Lab Environment
+Run the lab preparation command.
+lab start pods-troubleshooting
+This ensures:
+•	cluster is running
+•	required files are available
+________________________________________
+2. Login to OpenShift
+Login as developer user.
+oc login -u developer -p developer \
+https://api.ocp4.example.com:6443
+Expected output:
+Login successful
+________________________________________
+3. Create Project
+Create a new project for the exercise.
+oc new-project pods-troubleshooting
+Output:
+Now using project "pods-troubleshooting"
+________________________________________
+4. Create MySQL Pod
+Create a pod called mysql-server.
+Image used:
+registry.ocp4.example.com:8443/rhel9/mysql-80:1228
+Command:
+oc run mysql-server \
+--image registry.ocp4.example.com:8443/rhel9/mysql-80:1228 \
+--env MYSQL_USER=redhat \
+--env MYSQL_PASSWORD=redhat123 \
+--env MYSQL_DATABASE=world
+Environment variables:
+Variable	Value
+MYSQL_USER	redhat
+MYSQL_PASSWORD	redhat123
+MYSQL_DATABASE	world
+________________________________________
+5. Check Pod Status
+Check pod status.
+oc get pods
+Output:
+NAME           READY   STATUS             RESTARTS
+mysql-server   0/1     ImagePullBackoff   0
+Meaning:
+Pod cannot pull the container image
+________________________________________
+6. Check Logs
+Check pod logs.
+oc logs mysql-server
+Output:
+container is waiting to start:
+trying and failing to pull image
+Problem confirmed:
+Image cannot be pulled
+________________________________________
+7. Check Cluster Events
+Check events to find exact error.
+oc get events
+Important error message:
+Failed to pull image
+manifest unknown
+Meaning:
+Image tag does not exist
+________________________________________
+8. Check Available Image Tags
+Login to container registry.
+skopeo login registry.ocp4.example.com:8443
+Credentials:
+username: developer
+password: developer
+________________________________________
+Inspect repository tags.
+skopeo inspect \
+docker://registry.ocp4.example.com:8443/rhel9/mysql-80
+Available tags:
+1
+1-224
+1-228
+1-237
+latest
+Problem discovered:
+Tag 1228 does NOT exist
+Correct tag:
+1-228
+________________________________________
+9. Fix Pod Image
+Edit the pod configuration.
+oc edit pod/mysql-server
+Change:
+image: registry.ocp4.example.com:8443/rhel9/mysql-80:1228
+To:
+image: registry.ocp4.example.com:8443/rhel9/mysql-80:1-228
+Save and exit.
+________________________________________
+10. Verify Pod Status
+Check again.
+oc get pods
+Output:
+NAME           READY   STATUS
+mysql-server   1/1     Running
+Meaning:
+Pod successfully started
+________________________________________
+11. Copy SQL File Into Pod
+Copy database script.
+oc cp ~/DO180/labs/pods-troubleshooting/world_x.sql \
+mysql-server:/tmp/
+File location inside pod:
+/tmp/world_x.sql
+________________________________________
+12. Verify File in Pod
+Check file using exec.
+oc exec -it pod/mysql-server -- ls -la /tmp/
+Expected file:
+world_x.sql
+________________________________________
+13. Access Pod Shell
+Open shell inside pod.
+oc rsh mysql-server
+Prompt becomes:
+sh-5.1$
+________________________________________
+14. Login to MySQL
+Run:
+mysql -u redhat -p
+Password:
+redhat123
+________________________________________
+15. Select Database
+USE world;
+Output:
+Database changed
+________________________________________
+16. Import SQL Script
+Run:
+SOURCE /tmp/world_x.sql
+This creates tables and inserts data.
+________________________________________
+17. Verify Tables
+Run:
+SHOW TABLES;
+Output:
+city
+country
+countryinfo
+countrylanguage
+Exit:
+exit
+exit
+________________________________________
+18. Configure Port Forwarding
+Forward MySQL port.
+oc port-forward mysql-server 3306:3306
+Output:
+Forwarding from 127.0.0.1:3306 -> 3306
+Meaning:
+localhost:3306 → mysql pod
+________________________________________
+19. Connect From Local Machine
+Open new terminal.
+Connect using MySQL client.
+mysql -u redhat -p -h 127.0.0.1 -P 3306
+Password:
+redhat123
+________________________________________
+20. Verify Database
+Select database:
+USE world;
+List tables:
+SHOW TABLES;
+Count records:
+SELECT COUNT(*) FROM country;
+Output:
+239
+Meaning:
+Database imported successfully
+Exit:
+exit
+________________________________________
+21. Stop Port Forwarding
+Return to first terminal.
+Press:
+Ctrl + C
+This stops the connection.
+________________________________________
+22. Finish the Lab
+Clean resources.
+lab finish pods-troubleshooting
+This prevents conflicts with future labs.
+________________________________________
+Complete Troubleshooting Workflow
+Typical debugging steps:
+1 oc get pods
+2 oc logs pod
+3 oc get events
+4 fix image/configuration
+5 oc edit pod
+6 oc cp files
+7 oc rsh pod
+8 oc port-forward
+________________________________________
+Key Problem in This Lab
+Root cause:
+Invalid container image tag
+Wrong:
+mysql-80:1228
+Correct:
+mysql-80:1-228
+________________________________________
+✅ Final Result
+•	Pod successfully started
+•	Database initialized
+•	Tables imported
+•	Data verified through port forwarding
+
