@@ -1,0 +1,239 @@
+Troubleshoot Containers and Pods
+Objective
+Learn how to troubleshoot pods by:
+•	inspecting containers
+•	running commands inside containers
+•	copying files
+•	forwarding ports
+•	viewing logs and events
+These help identify application or configuration issues.
+________________________________________
+1. Container Troubleshooting Concept
+Containers are designed to be:
+•	Immutable → not meant to change after creation
+•	Ephemeral → temporary
+Meaning:
+If a container has a problem
+→ fix the image
+→ rebuild container
+→ redeploy
+Temporary fixes on a running container are only for debugging.
+Correct workflow:
+1 Identify problem
+2 Fix source code / config
+3 Build new container image
+4 Redeploy application
+________________________________________
+2. Important CLI Troubleshooting Commands
+Administrators mainly use oc CLI.
+Basic inspection
+Command	Purpose
+oc get	list resources
+oc describe	detailed resource information
+oc logs	view container logs
+oc get events	view cluster events
+________________________________________
+3. Inspect Resource Details
+Use describe to inspect pods.
+oc describe pod POD_NAME
+Example:
+oc describe pod dns-default-lt13h
+Information shown:
+•	container image
+•	node location
+•	events
+•	restart count
+•	IP address
+•	volume mounts
+This command is very important for troubleshooting.
+________________________________________
+4. Edit Running Resources
+Sometimes configuration must be modified.
+Edit resource
+oc edit pod POD_NAME
+Example:
+oc edit pod mongo-app-sw88b
+Opens the YAML file in an editor.
+Common edits:
+•	change environment variables
+•	change container image
+•	modify ports
+________________________________________
+5. Patch Resource Fields
+Instead of editing the full file, use patch.
+Example: change container image.
+oc patch pod valid-pod --type='json' \
+-p='[{"op": "replace", "path": "/spec/containers/0/image", \
+"value":"registry.access.redhat.com/ubi8/httpd-24"}]'
+Used when:
+•	automation scripts
+•	quick configuration updates
+________________________________________
+6. Copy Files To/From Containers
+Sometimes logs or config files must be copied.
+Command:
+oc cp SOURCE DESTINATION
+Copy file from container to host
+oc cp apache-app:/var/www/html/index.html /tmp/index.html
+Copy file from host to container
+oc cp /tmp/index.html apache-app:/var/www/html/
+Important rule:
+tar must exist inside container
+Otherwise the command fails.
+________________________________________
+7. Synchronize Files (rsync)
+For large directories use:
+oc rsync SOURCE DESTINATION
+Example:
+oc rsync apache-app:/var/www/ /tmp/web_files
+This synchronizes only changed files.
+Requirements:
+•	rsync installed locally
+•	rsync or tar inside container
+________________________________________
+8. Remote Shell Access
+To connect inside a container:
+oc rsh POD_NAME
+Example:
+oc rsh tomcat-app-jw53r
+Output:
+sh-4.4#
+Now you are inside the container shell.
+If pod has multiple containers:
+oc rsh -c container_name POD_NAME
+________________________________________
+9. Execute Commands in Container
+Instead of opening shell, run command directly.
+Command:
+oc exec POD_NAME -- COMMAND
+Example:
+oc exec mariadb-pod -- ls /
+Example output:
+bin
+boot
+dev
+etc
+home
+lib
+________________________________________
+Interactive execution
+Often used with:
+-it
+Example:
+oc exec -it mariadb-pod -- bash
+Meaning:
+•	-i interactive
+•	-t terminal
+________________________________________
+10. View Container Logs
+Logs are the most common troubleshooting tool.
+Command:
+oc logs POD_NAME
+Example:
+oc logs php-app-5d9b84b588-kzfxd
+Logs show:
+•	errors
+•	application startup
+•	crashes
+•	database issues
+________________________________________
+Logs for specific container
+If multiple containers exist:
+oc logs POD_NAME -c CONTAINER_NAME
+________________________________________
+11. View Cluster Events
+Kubernetes records cluster events.
+Command:
+oc get events
+Example output:
+Pulled container image
+Created container
+Started container
+Events show:
+•	image pull errors
+•	scheduling failures
+•	network problems
+•	pod restarts
+________________________________________
+12. Port Forwarding
+Sometimes pods do not expose ports externally.
+Use port forwarding to access them locally.
+Command:
+oc port-forward POD LOCAL_PORT:CONTAINER_PORT
+Example:
+oc port-forward nginx-pod 8080:80
+Result:
+localhost:8080 → pod:80
+Now open browser:
+http://localhost:8080
+Very useful for debugging.
+________________________________________
+13. Troubleshooting from Inside Cluster
+Sometimes debugging requires tools that are not inside the container.
+Solution:
+Create a toolbox container.
+Example tools:
+•	mysql client
+•	curl
+•	ping
+•	netcat
+•	dig
+•	tcpdump
+Example use case:
+Test if one pod can connect to another pod
+Example:
+mysql -h mysql-server-pod
+This helps test network and service connectivity.
+________________________________________
+14. Why Not Install Tools in Production Containers
+Adding debugging tools increases:
+•	container size
+•	security risk
+•	maintenance overhead
+Better approach:
+Use a temporary toolbox container
+________________________________________
+15. Typical Troubleshooting Workflow
+When a pod fails:
+Step 1
+oc get pods
+Check status.
+________________________________________
+Step 2
+oc describe pod POD_NAME
+Check events.
+________________________________________
+Step 3
+oc logs POD_NAME
+Find application errors.
+________________________________________
+Step 4
+oc exec -it POD_NAME -- bash
+Inspect inside container.
+________________________________________
+Step 5
+oc port-forward POD 8080:80
+Test service locally.
+________________________________________
+Step 6
+oc cp
+oc rsync
+Copy configuration files if needed.
+________________________________________
+16. Most Important Commands (Exam Focus)
+These commands are used very frequently in OpenShift troubleshooting.
+Command	Purpose
+oc get pods	list pods
+oc describe pod	inspect pod
+oc logs	view container logs
+oc exec	run command inside container
+oc rsh	open container shell
+oc port-forward	access pod port
+oc cp	copy files
+oc rsync	sync directories
+oc edit	edit resource
+oc patch	update resource fields
+________________________________________
+One-Line Summary
+Troubleshooting containers = inspect pods, view logs, run commands inside containers, copy files, and test connectivity.
+
