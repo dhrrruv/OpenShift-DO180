@@ -1,0 +1,137 @@
+Application Health Probes 
+Objectives Describe how Kubernetes uses health probes during deployment, scaling, and failover of applications.
+
+1. What Are Health Probes?
+Health probes are mechanisms Kubernetes uses to check the status of a pod/container. They ensure:
+•	Crashing pods are restarted automatically.
+•	Traffic only goes to healthy pods.
+•	Scaling decisions happen only when new pods are ready.
+•	Failures are monitored effectively.
+Think of probes as heartbeat checks for your application.
+________________________________________
+2. Types of Probes
+Kubernetes supports three main types of probes:
+a) Startup Probe
+•	Checks if an application has finished starting.
+•	Only runs until the app reports it’s started.
+•	If the probe fails beyond a timeout, the pod restarts (restartPolicy applies).
+•	Useful for apps with long startup times.
+Example YAML snippet:
+startupProbe:
+  httpGet:
+    path: /health
+    port: 3000
+  periodSeconds: 10
+  failureThreshold: 12
+•	Runs every 10 seconds, allows 12 failures before restarting.
+•	Total wait = 12 × 10 = 120 seconds.
+________________________________________
+b) Readiness Probe
+•	Checks if the pod is ready to serve traffic.
+•	If it fails, Kubernetes removes pod from service endpoints.
+•	Detects temporary unavailability (like batch jobs or slow initialization).
+Example YAML snippet:
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 3000
+  periodSeconds: 5
+  failureThreshold: 3
+•	Runs every 5 seconds, fails after 3 consecutive failures.
+•	If successful again, pod is added back to service.
+________________________________________
+c) Liveness Probe
+•	Checks if the application is alive.
+•	If it fails enough times, pod is restarted.
+•	Runs throughout the pod’s lifetime (after startup completes).
+Example YAML snippet:
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3000
+  periodSeconds: 10
+  failureThreshold: 6
+•	Runs every 10 seconds, restarts pod if probe fails 6 consecutive times.
+________________________________________
+3. Types of Tests in Probes
+You can define probes using three methods:
+Type	How it works
+HTTP GET	Sends an HTTP GET request to a pod endpoint. 200–399 = success, others = failure.
+Command	Runs a shell command inside the container. Exit 0 = success, anything else = failure.
+TCP Socket	Tries to open a TCP socket on a port. Connection = success.
+Example using command:
+livenessProbe:
+  exec:
+    command:
+      - cat
+      - /tmp/healthy
+  periodSeconds: 5
+  failureThreshold: 3
+________________________________________
+4. Probe Timing Variables
+•	periodSeconds → how often the probe runs.
+•	failureThreshold → how many consecutive failures before the pod is considered unhealthy.
+•	Example: periodSeconds: 5, failureThreshold: 3 → pod has 15 seconds to recover before mitigation.
+Key: Too frequent probes waste resources; too infrequent slows response to failures.
+________________________________________
+5. Adding Probes in YAML
+You can define probes inside a pod template (deployment, statefulset):
+Deployment example:
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-server
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+      - name: web-server
+        image: my-web-app:v1
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          periodSeconds: 10
+          failureThreshold: 6
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3000
+          periodSeconds: 5
+          failureThreshold: 3
+•	Liveness → restarts container if unhealthy.
+•	Readiness → temporarily removes pod from service if not ready.
+________________________________________
+6. Adding Probes via CLI
+You can also add or modify probes without editing YAML using oc set probe (OpenShift only):
+oc set probe deployment/front-end \
+--readiness \
+--failure-threshold=6 \
+--period-seconds=10 \
+--get-url=http://:8080/healthz
+•	Adds a readiness probe to the front-end deployment.
+•	You can also use --liveness or --startup.
+________________________________________
+7. Adding Probes via Web Console
+1.	Navigate to Workloads → Deployments.
+2.	Select the deployment.
+3.	Click Actions → Add Health Checks.
+4.	Edit the probe: set type, path, port, headers, etc.
+Useful if you prefer GUI over YAML or CLI.
+________________________________________
+8. Key Takeaways
+•	Startup Probe → ensures pod finishes starting before checking liveness.
+•	Readiness Probe → controls routing to pod, handles temporary unavailability.
+•	Liveness Probe → restarts unhealthy pods, ensures reliability.
+•	HTTP/Command/TCP → flexible probe types depending on your app.
+•	Timing → balance period and failureThreshold to avoid wasted resources.
+•	Probes work with Deployments to improve scaling, failover, and HA.
+________________________________________
+Commands Cheat-Sheet
+Task	Command
+Add readiness probe via CLI	oc set probe deployment/<name> --readiness --get-url=http://:8080/healthz --period-seconds=10 --failure-threshold=6
+Add liveness probe via CLI	oc set probe deployment/<name> --liveness --get-url=http://:8080/healthz --period-seconds=10 --failure-threshold=6
+Edit deployment YAML	oc edit deployment <name>
+Apply updated YAML	oc apply -f deployment.yaml
+
