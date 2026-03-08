@@ -1,0 +1,328 @@
+Kubernetes and OpenShift Command-Line Interfaces (CLI)
+Objectives
+Access an OpenShift cluster by using the Kubernetes and OpenShift command-line interfaces.
+
+1. What is CLI in Kubernetes and OpenShift?
+A Command Line Interface (CLI) is a tool that allows users to interact with a cluster by typing commands in the terminal.
+In Kubernetes and OpenShift, you can manage the cluster in two ways:
+1.	Web Console (GUI) – browser interface
+2.	CLI (Command Line Interface) – terminal commands
+Two main CLIs are used:
+CLI	Used For
+kubectl	Kubernetes clusters
+oc	OpenShift clusters
+________________________________________
+2. kubectl vs oc
+kubectl
+•	Native command-line tool for Kubernetes
+•	Used to manage Kubernetes resources like:
+o	Pods
+o	Deployments
+o	Services
+o	ConfigMaps
+Example:
+kubectl get pods
+________________________________________
+oc (OpenShift CLI)
+The oc command is a superset of kubectl.
+Meaning:
+oc = kubectl + OpenShift features
+So oc supports:
+•	All kubectl commands
+•	Plus OpenShift specific commands
+Example OpenShift resources:
+•	Projects
+•	Routes
+•	ImageStreams
+Example command:
+oc new-project myapp
+________________________________________
+Why use oc CLI?
+OpenShift CLI is useful when:
+•	Working with source code
+•	Writing automation scripts
+•	Low bandwidth environments
+•	Web console unavailable
+•	Managing OpenShift resources
+________________________________________
+3. Installing kubectl CLI
+Step 1 — Download kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+Explanation:
+Part	Meaning
+curl	download file
+-L	follow redirect
+-O	save with original name
+This downloads the kubectl binary.
+________________________________________
+Step 2 — Download checksum
+Checksum verifies that the file is not corrupted.
+curl -LO "https://dl.k8s.io/.../kubectl.sha256"
+________________________________________
+Step 3 — Verify file integrity
+echo "$(cat kubectl.sha256) kubectl" | sha256sum --check
+Output:
+kubectl: OK
+Meaning the file is valid.
+If corrupted:
+kubectl: FAILED
+________________________________________
+Step 4 — Install kubectl
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+Explanation:
+Option	Meaning
+-o root	owner
+-g root	group
+-m 0755	permission
+________________________________________
+Step 5 — Verify installation
+kubectl version --client
+Output example:
+Client Version: v1.31.1
+________________________________________
+4. Viewing kubectl Commands
+To see all commands:
+kubectl --help
+Example output commands:
+Command	Purpose
+create	create resource
+expose	expose pod as service
+run	run container
+set	modify object settings
+________________________________________
+Command specific help
+kubectl create --help
+Shows:
+•	syntax
+•	examples
+•	options
+•	subcommands
+Example:
+kubectl create -f pod.yaml
+Creates a resource using a YAML file.
+________________________________________
+5. kubectl explain Command
+This command shows documentation of resources.
+Example:
+kubectl explain pod
+Output shows:
+•	description
+•	fields
+•	API version
+Example fields:
+apiVersion
+metadata
+spec
+status
+________________________________________
+Example deeper explanation:
+kubectl explain pods.spec.containers.resources
+Explains:
+•	CPU
+•	memory
+•	limits
+•	requests
+________________________________________
+6. OpenShift CLI (oc)
+Main tool for managing OpenShift clusters.
+Basic syntax:
+oc command
+Examples:
+oc login
+oc get pods
+oc new-project
+________________________________________
+7. Downloading oc CLI
+You can download it from the OpenShift Web Console.
+Path:
+Help (?) → Command Line Tools
+Available for:
+•	Windows
+•	Linux
+•	Mac
+•	ARM systems
+________________________________________
+8. Authentication in OpenShift
+Before using CLI, you must login to the cluster.
+Authentication verifies who you are.
+Authorization checks what you can do.
+________________________________________
+Types of Users in OpenShift
+1. Regular Users
+Normal users like:
+•	developers
+•	admins
+Represented by User objects.
+________________________________________
+2. System Users
+Used by internal infrastructure.
+Examples:
+•	cluster admin
+•	system services
+________________________________________
+3. Service Accounts
+Used by applications to access API.
+Example:
+pods calling API
+Created automatically in projects.
+________________________________________
+9. Login to OpenShift Cluster
+Method 1 — Username and Password
+oc login -u admin https://api.ocp4.example.com:6443
+Then it asks for password.
+Example:
+Username: admin
+Password: redhatocp
+________________________________________
+Simplified command
+oc login -u admin -p redhatocp https://api.ocp4.example.com:6443
+⚠ Not secure for production.
+________________________________________
+Method 2 — Token Authentication (Recommended)
+Used in:
+•	production
+•	CI/CD pipelines
+•	automation scripts
+Command:
+oc login --token=TOKEN --server=cluster-url
+________________________________________
+Method 3 — Web Login
+oc login --web api-url
+This opens a browser authentication page.
+________________________________________
+10. Projects in OpenShift
+A Project is similar to a Kubernetes Namespace.
+It provides:
+•	isolation
+•	multi-tenancy
+Create project:
+oc new-project myapp
+________________________________________
+11. Important oc Commands
+1. oc cluster-info
+Shows cluster information.
+oc cluster-info
+Example output:
+Kubernetes control plane is running at https://api...
+Useful for debugging.
+________________________________________
+2. oc api-versions
+Shows API versions supported by the cluster.
+oc api-versions
+Example:
+apps/v1
+admissionregistration.k8s.io/v1
+________________________________________
+3. oc get clusteroperator
+Shows OpenShift cluster operators.
+oc get clusteroperator
+Example:
+NAME             VERSION   AVAILABLE
+authentication   4.18      True
+Operators manage OpenShift components automatically.
+________________________________________
+12. oc get Command
+Used to retrieve resource information.
+Example:
+oc get pods
+Output:
+NAME                READY   STATUS
+quotes-api          1/1     Running
+________________________________________
+Export resource YAML
+oc get pod mypod -o yaml
+Used for:
+•	backup
+•	editing configuration
+________________________________________
+13. oc get all
+Shows all important resources in project.
+Command:
+oc get all
+Output includes:
+•	pods
+•	services
+•	deployments
+•	replica sets
+•	image streams
+________________________________________
+14. oc describe Command
+Shows detailed information about resources.
+Example:
+oc describe pod mypod
+Displays:
+•	node location
+•	IP
+•	events
+•	status
+•	labels
+•	container info
+Useful for troubleshooting.
+________________________________________
+15. oc explain Command
+Shows documentation for resource fields.
+Example:
+oc explain pods
+Example deeper:
+oc explain pods.spec.containers
+________________________________________
+16. oc create Command
+Creates resources from YAML or JSON file.
+Example:
+oc create -f pod.yaml
+Output:
+pod/quotes-pod created
+________________________________________
+17. oc status
+Shows high-level overview of project.
+Command:
+oc status
+Shows:
+•	services
+•	deployments
+•	builds
+•	errors
+________________________________________
+18. oc delete Command
+Deletes resources.
+Example:
+oc delete pod quotes-ui
+Output:
+pod/quotes-ui deleted
+Important concept:
+If a pod is managed by Deployment, it will automatically recreate.
+________________________________________
+19. Using Namespace / Project
+To run command in specific namespace:
+oc get pods -n openshift-apiserver
+or
+--namespace
+Example:
+oc get pods --namespace=myproject
+________________________________________
+Important Exam Concepts
+Remember these points:
+Key Differences
+kubectl	oc
+Kubernetes CLI	OpenShift CLI
+basic features	extended features
+cannot manage routes	can manage routes
+cannot create projects	can create projects
+________________________________________
+Important Commands to Remember
+kubectl --help
+kubectl explain
+kubectl create
+
+oc login
+oc new-project
+oc get
+oc get all
+oc describe
+oc explain
+oc create
+oc delete
+oc status
+oc cluster-info
+oc api-versions
+
