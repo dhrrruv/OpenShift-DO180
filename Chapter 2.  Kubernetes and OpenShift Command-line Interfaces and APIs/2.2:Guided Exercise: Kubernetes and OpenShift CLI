@@ -1,0 +1,332 @@
+Guided Exercise: Kubernetes and OpenShift CLI
+Goal of the Exercise
+This lab teaches you how to:
+1.	Access an OpenShift cluster using CLI
+2.	Use authentication token
+3.	Compare kubectl vs oc
+4.	Identify cluster components and resources
+________________________________________
+1. Preparing the Lab Environment
+Command:
+lab start cli-interfaces
+What it does
+This command prepares the lab environment.
+It:
+•	creates required cluster resources
+•	configures the workstation
+•	ensures the cluster is ready
+So you can safely run the exercise.
+________________________________________
+2. Access the OpenShift Web Console
+Open browser:
+https://console-openshift-console.apps.ocp4.example.com
+Login with:
+Username: developer
+Password: developer
+Purpose
+The OpenShift Web Console is the GUI interface used to:
+•	manage cluster
+•	deploy applications
+•	download CLI tools
+•	get login tokens
+________________________________________
+3. Locate the oc CLI Tool
+Inside the console:
+Help (?) → Command Line Tools
+This page provides downloads for:
+•	oc CLI
+•	kubectl CLI
+For operating systems like:
+•	Linux
+•	Windows
+•	Mac
+•	ARM
+Important concept:
+oc package also includes kubectl
+So installing oc automatically gives kubectl.
+In this lab, CLI is already installed, so no download needed.
+________________________________________
+4. Get Login Token
+Next step is authentication.
+Open:
+Command Line Tools → Copy login command
+Login again with developer account.
+Click:
+Display Token
+You will see something like:
+oc login --token=sha256-xxxx \
+--server=https://api.ocp4.example.com:6443
+________________________________________
+5. Login to Cluster Using Token
+Command:
+oc login --token=sha256-xxxxx \
+--server=https://api.ocp4.example.com:6443
+What happens
+This command authenticates the user with the cluster API server.
+Components involved:
+User → oc CLI → API Server → OAuth Authentication
+Output example:
+Logged into "https://api.ocp4.example.com:6443" as "developer"
+Meaning:
+•	authentication successful
+•	CLI now connected to cluster
+________________________________________
+6. Compare kubectl Commands
+Command:
+kubectl help
+Purpose
+Lists all available kubectl commands.
+Example commands:
+Command	Purpose
+create	create resource
+expose	expose service
+run	run container
+set	change object configuration
+get	list resources
+delete	delete resources
+explain	show documentation
+Example output:
+kubectl controls the Kubernetes cluster manager
+________________________________________
+Important Observation
+kubectl does NOT have login command.
+Because Kubernetes normally uses:
+kubeconfig authentication
+But OpenShift adds its own login system.
+________________________________________
+7. Explore kubectl create Command
+Command:
+kubectl create --help
+Purpose
+Shows:
+•	command syntax
+•	examples
+•	subcommands
+•	options
+Example usage:
+kubectl create -f pod.yaml
+Meaning:
+Create resource from YAML file.
+________________________________________
+Available subcommands
+Examples:
+clusterrole
+clusterrolebinding
+configmap
+cronjob
+deployment
+These represent Kubernetes resources.
+________________________________________
+Important Option
+--dry-run
+Example:
+kubectl create deployment nginx --dry-run=client
+Meaning:
+Do not actually create resource.
+Just show what would happen.
+________________________________________
+8. Compare oc Commands
+Command:
+oc help
+This lists OpenShift CLI commands.
+Example output:
+Basic Commands:
+login
+new-project
+new-app
+status
+project
+projects
+explain
+________________________________________
+Important Difference
+kubectl	oc
+Kubernetes CLI	OpenShift CLI
+No login command	Has login command
+No project creation	Can create projects
+No application creation	Has new-app
+________________________________________
+Example OpenShift Commands
+Login
+oc login
+Authenticate user.
+________________________________________
+Create project
+oc new-project myproject
+Creates new namespace/project.
+________________________________________
+Create application
+oc new-app
+Deploys app from:
+•	source code
+•	container image
+________________________________________
+9. Compare oc create Command
+Command:
+oc create --help
+It includes:
+•	all kubectl create features
+•	additional OpenShift resources
+Example OpenShift resources:
+build
+imagestream
+route
+clusterresourcequota
+________________________________________
+10. Login as Admin User
+Command:
+oc login --web
+What happens
+1.	Opens browser login page
+2.	User logs in
+3.	Token generated
+4.	CLI receives token
+Login credentials:
+Username: admin
+Password: redhatocp
+________________________________________
+11. Check Cluster Version
+Command:
+oc version
+Example output:
+Client Version: 4.18.6
+Server Version: 4.18.6
+Kubernetes Version: v1.31.6
+Meaning
+Field	Meaning
+Client Version	CLI version
+Server Version	OpenShift version
+Kubernetes Version	underlying Kubernetes
+________________________________________
+12. View Cluster Information
+Command:
+oc cluster-info
+Output:
+Kubernetes control plane is running at
+https://api.ocp4.example.com:6443
+Meaning
+Shows:
+•	API server address
+•	cluster endpoints
+Used for:
+cluster debugging
+________________________________________
+13. List Supported API Versions
+Command:
+oc api-versions
+Example:
+apps/v1
+admissionregistration.k8s.io/v1
+apps.openshift.io/v1
+Purpose
+Shows API groups supported by cluster.
+Kubernetes resources are organized as:
+group/version
+Example:
+apps/v1
+________________________________________
+14. List Cluster Operators
+Command:
+oc get clusteroperator
+Example output:
+authentication
+console
+dns
+etcd
+ingress
+image-registry
+What are Cluster Operators?
+Cluster operators manage core components of OpenShift.
+Examples:
+Operator	Function
+authentication	login system
+dns	DNS services
+etcd	cluster database
+ingress	external routing
+image-registry	container image storage
+________________________________________
+15. View Pods in System Project
+Command:
+oc get pods -n openshift-apiserver
+Explanation
+Part	Meaning
+oc	OpenShift CLI
+get pods	list pods
+-n	specify namespace
+Example output:
+apiserver-68c9485699
+This pod runs the API server.
+________________________________________
+16. Check Project Status
+Command:
+oc status -n openshift-authentication
+Purpose
+Provides high-level overview of project resources.
+Shows:
+•	deployments
+•	services
+•	routes
+•	pods
+Example:
+deployment/oauth-openshift
+This service handles authentication.
+________________________________________
+17. View Resource Documentation
+Command:
+oc explain services
+Purpose
+Shows resource structure.
+Example fields:
+apiVersion
+metadata
+spec
+status
+This helps when writing YAML files.
+________________________________________
+18. List Cluster Nodes
+Command:
+oc get nodes
+Example output:
+NAME       STATUS   ROLES
+master01   Ready    control-plane,master,worker
+Meaning
+Cluster contains:
+1 node
+This node acts as:
+•	master
+•	control-plane
+•	worker
+________________________________________
+19. Finish the Lab
+Command:
+lab finish cli-interfaces
+Purpose
+This cleans up:
+•	temporary resources
+•	lab configurations
+Prevents interference with next exercises.
+________________________________________
+Key Concepts From This Exercise
+CLI Tools
+kubectl → Kubernetes CLI
+oc → OpenShift CLI
+________________________________________
+Important Commands Learned
+oc login
+oc version
+oc cluster-info
+oc api-versions
+oc get clusteroperator
+oc get pods
+oc get nodes
+oc status
+oc explain
+________________________________________
+Key OpenShift Components Observed
+•	API Server
+•	etcd
+•	DNS
+•	Authentication
+•	Ingress
+•	Image Registry
+
