@@ -1,0 +1,85 @@
+Update Application Image and Settings
+Objectives
+•	Update applications with minimal downtime.
+•	Control deployments using strategies.
+•	Separate code, configuration, and data for easier updates.
+________________________________________
+Key Concepts
+1. Externalizing Code, Config, and Data
+•	Application code resides in container images.
+•	Configuration (ConfigMaps, Secrets) and persistent data are externalized.
+•	Enables deployment across environments without changing source code.
+•	CI/CD pipelines automate building images and pushing them to registries.
+________________________________________
+2. Deployment Strategies
+OpenShift uses Deployment objects to manage application rollout.
+RollingUpdate (Default)
+•	Replaces pods gradually (one by one).
+•	Both old and new versions coexist during the update.
+•	Requires version compatibility between old and new pods.
+•	Parameters:
+o	maxSurge: How many extra pods can be created above desired replicas.
+o	maxUnavailable: How many pods can be unavailable during update.
+•	Readiness probes ensure traffic goes only to ready pods.
+•	Advantages: Minimal downtime, continuous deployment.
+Example:
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 25%
+    maxUnavailable: 50%
+Recreate
+•	Stops all old pods before starting new ones.
+•	Causes downtime during rollout.
+•	Use when:
+o	Different versions cannot run together.
+o	Performing data migrations.
+•	Not recommended for high-availability apps.
+Example:
+strategy:
+  type: Recreate
+________________________________________
+3. Rollouts
+•	Updating Deployment (image, env vars, probes) triggers a rollout.
+•	Pausing rollout allows multiple updates in one deployment:
+oc rollout pause deployment/myapp
+oc set image deployment/myapp nginx-120=...:1-86
+oc set env deployment/myapp NGINX_LOG_TO_VOLUME=1
+oc set probe deployment/myapp --readiness --get-url http://:8080
+oc rollout resume deployment/myapp
+•	Create deployment with 0 replicas to configure before starting:
+oc create deployment myapp2 --image ... --replicas 0
+oc set probe deployment/myapp2 --readiness --get-url http://:8080
+oc scale deployment/myapp2 --replicas 10
+________________________________________
+4. ReplicaSets
+•	Each Deployment creates one or more ReplicaSets to manage pods.
+•	Updating a Deployment creates a new ReplicaSet.
+•	Old ReplicaSets are retained (for rollback) according to .spec.revisionHistoryLimit.
+•	Do not manually change ReplicaSets; OpenShift manages them.
+Example Output:
+NAME                DESIRED   CURRENT   READY
+myapp2-574968dd59   0         0         0
+myapp2-76679885b9   10        10        10
+myapp2-786cbf9bc8   0         0         0
+________________________________________
+5. Rollback
+•	Use ReplicaSets to revert if a deployment fails.
+oc rollout undo deployment/myapp2              # Rollback to previous version
+oc rollout history deployment/myapp2           # List revisions
+oc rollout undo deployment/myapp2 --to-revision 1   # Rollback to a specific revision
+•	Avoid floating tags (latest) for rollbacks because the image may change in the registry.
+•	Use ImageStreams for stable image references.
+________________________________________
+6. Monitoring Rollouts
+•	oc rollout status deployment/myapp2 → Track deployment progress.
+•	Readiness probes ensure only ready pods receive traffic.
+•	During a rolling update, multiple ReplicaSets may exist, scaling up new pods while scaling down old pods.
+________________________________________
+7. Recommended Practices
+•	Use RollingUpdate for minimal downtime.
+•	Configure readiness probes.
+•	Avoid floating tags in production for critical deployments.
+•	Pause rollouts for batch updates to avoid multiple sequential deployments.
+•	Use ImageStreams to track and reference container images reliably.
+
