@@ -1,0 +1,222 @@
+
+1️⃣ Start the Lab
+Prepare the environment.
+lab start cli-review
+________________________________________
+2️⃣ Login as Developer
+Connect to the cluster.
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+Create a project (namespace):
+oc new-project cli-review
+Project = namespace used for your resources
+________________________________________
+3️⃣ Get Cluster Version
+Shows OpenShift + Kubernetes versions.
+oc version
+Example output:
+Client Version: 4.18.6
+Kubernetes Version: v1.31.6
+Important for:
+•	compatibility
+•	debugging
+•	upgrades
+________________________________________
+4️⃣ List Supported API Versions
+oc api-versions
+Example:
+apps/v1
+apiserver.openshift.io/v1
+oauth.openshift.io/v1
+This shows all APIs supported by the cluster.
+________________________________________
+5️⃣ View Kubernetes Object Fields
+Example: security context of pods
+oc explain pod.spec.securityContext
+This command:
+•	explains Kubernetes objects
+•	shows fields
+•	used for YAML creation
+Example structure:
+pod
+ └─ spec
+     └─ securityContext
+________________________________________
+6️⃣ Login as Admin
+Admin has full cluster permissions.
+oc login -u admin -p redhatocp https://api.ocp4.example.com:6443
+________________________________________
+7️⃣ List Cluster Operators
+Cluster operators manage core components.
+oc get clusteroperators
+Example:
+authentication
+console
+dns
+etcd
+kube-apiserver
+Healthy operator:
+AVAILABLE=True
+PROGRESSING=False
+DEGRADED=False
+________________________________________
+8️⃣ List Namespaced Resources
+Shows resources that exist inside namespaces.
+oc api-resources --namespaced
+Example:
+Resource	Shortname
+pods	po
+configmaps	cm
+services	svc
+pvc	persistentvolumeclaims
+These resources belong to projects/namespaces.
+________________________________________
+9️⃣ List Core API Group Resources
+Core API group = no group name ("")
+oc api-resources --api-group ''
+Examples:
+pods
+nodes
+namespaces
+configmaps
+events
+These are basic Kubernetes resources.
+________________________________________
+🔟 List Resources from OAuth API Group
+oc api-resources --api-group oauth.openshift.io
+Example:
+oauthaccesstokens
+oauthauthorizationtokens
+oauthclients
+These resources manage authentication and login tokens.
+________________________________________
+1️⃣1️⃣ View Cluster Events
+Events help diagnose problems.
+oc get events -n openshift-kube-controller-manager
+Examples:
+LeaderElection
+Pulled
+Started
+Events show:
+•	pod startup
+•	scheduling
+•	errors
+•	leader election
+________________________________________
+1️⃣2️⃣ Check Pod Conditions Using jq
+Retrieve pod status conditions.
+oc get pods etcd-master01 -n openshift-etcd -o json | jq .status.conditions
+Example output:
+Initialized
+Ready
+ContainersReady
+PodScheduled
+Meaning:
+Condition	Meaning
+Initialized	Pod initialized
+Ready	Pod ready for traffic
+ContainersReady	containers running
+PodScheduled	assigned to node
+________________________________________
+1️⃣3️⃣ View Container Resource Usage
+Check CPU + memory per container.
+oc adm top pods etcd-master01 -n openshift-etcd --containers
+Example:
+etcd            101m   323Mi
+etcd-metrics      8m    32Mi
+Useful for:
+•	performance monitoring
+•	troubleshooting
+________________________________________
+1️⃣4️⃣ Get Allocatable Pods Using JSONPath
+oc get node master01 -o jsonpath='{.status.allocatable.pods}'
+Example:
+250
+Meaning:
+Node can run 250 pods maximum.
+________________________________________
+1️⃣5️⃣ View Cluster Pod Resource Usage
+oc adm top pods -A --sum
+Options:
+Option	Meaning
+-A	all namespaces
+--sum	total resource usage
+Example total:
+CPU: 386m
+Memory: 11929Mi
+________________________________________
+1️⃣6️⃣ Check Node Resource Usage
+oc adm top node
+Example:
+CPU: 1199m (15%)
+Memory: 12555Mi (66%)
+Used for node capacity monitoring.
+________________________________________
+1️⃣7️⃣ Check Node CPU Capacity
+oc get node master01 -o jsonpath='Allocatable: {.status.allocatable.cpu}{"\n"}Capacity: {.status.capacity.cpu}'
+Example:
+Allocatable: 7500m
+Capacity: 8
+Meaning:
+Value	Meaning
+Capacity	total CPU
+Allocatable	CPU available for pods
+________________________________________
+1️⃣8️⃣ Collect Cluster Debug Information
+Run:
+oc adm must-gather --dest-dir /home/student/DO180/labs/cli-review/debugging
+This collects:
+•	cluster logs
+•	configurations
+•	operator states
+•	events
+Used for Red Hat support cases.
+________________________________________
+1️⃣9️⃣ Inspect Specific Operator
+Example:
+oc adm inspect clusteroperator kube-apiserver \
+--dest-dir /home/student/DO180/labs/cli-review/inspect \
+--since 5m
+Options:
+Option	Meaning
+--dest-dir	output directory
+--since	collect recent logs
+________________________________________
+2️⃣0️⃣ Grade the Lab
+Check answers.
+lab grade cli-review
+Fix errors if any.
+________________________________________
+2️⃣1️⃣ Finish Lab
+Clean up resources.
+lab finish cli-review
+________________________________________
+🔑 Most Important Commands From This Lab
+Task	Command
+Cluster version	oc version
+API versions	oc api-versions
+Explain objects	oc explain
+Cluster operators	oc get clusteroperators
+List resources	oc api-resources
+Pod conditions	jq .status.conditions
+Pod resource usage	oc adm top pods
+Node resource usage	oc adm top node
+Allocatable pods	JSONPath filter
+Cluster debug	oc adm must-gather
+Inspect operator	oc adm inspect
+________________________________________
+⭐ Easy Way to Remember (Exam Tip)
+Cluster Health Check Steps:
+1️⃣ Operators
+oc get clusteroperators
+2️⃣ Pods
+oc get pods -A
+3️⃣ Nodes
+oc get nodes
+4️⃣ Resource Usage
+oc adm top pods
+oc adm top node
+5️⃣ Events
+oc get events
+6️⃣ Debug
+oc adm must-gather
+
