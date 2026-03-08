@@ -1,0 +1,305 @@
+Guided Exercise: Provision Persistent Data Volumes
+Goal of the Lab
+Deploy a MySQL database with persistent storage so that:
+•	Data survives pod deletion
+•	Storage is provided by Persistent Volume (PV)
+•	Requested using Persistent Volume Claim (PVC)
+You will also identify:
+•	The PV backing the database
+•	The storage provisioner
+________________________________________
+Step 1: Prepare Lab Environment
+Run:
+lab start storage-volumes
+What this command does
+It prepares the OpenShift lab environment:
+•	Creates project storage-volumes
+•	Ensures cluster access
+•	Prepares required files
+Example file used later:
+init-db.sql
+________________________________________
+Step 2: Login to OpenShift Web Console
+Open browser:
+https://console-openshift-console.apps.ocp4.example.com
+Login:
+Username: developer
+Password: developer
+Switch perspective:
+Administrator
+Why?
+Because administrator view allows access to:
+•	Storage
+•	Deployments
+•	PVC
+•	PV
+•	Services
+________________________________________
+Step 3: Identify Default Storage Class
+Go to:
+Storage → StorageClasses
+You will see something like:
+Name	Provisioner
+nfs-storage	k8s-sigs.io/nfs-subdir-external-provisioner
+Important detail:
+Default StorageClass = nfs-storage
+What this means
+If a PVC does not specify a storage class, Kubernetes automatically uses:
+nfs-storage
+Provisioner used:
+k8s-sigs.io/nfs-subdir-external-provisioner
+This means:
+Storage comes from an NFS server
+________________________________________
+Step 4: Create MySQL Deployment
+Go to:
+Workloads → Deployments → Create Deployment
+Fill values:
+Field	Value
+Deployment Name	db-pod
+Image	registry.ocp4.example.com:8443/rhel8/mysql-80
+Project	storage-volumes
+Image used:
+rhel8/mysql-80
+This is MySQL 8 container.
+________________________________________
+Step 5: Add Environment Variables
+MySQL requires configuration variables.
+Variable	Value
+MYSQL_USER	user1
+MYSQL_PASSWORD	redhat123
+MYSQL_DATABASE	items
+These variables:
+•	create database
+•	create user
+•	configure authentication
+________________________________________
+Step 6: Set Replicas
+Set:
+Replicas = 1
+Reason:
+Database should not run multiple replicas without clustering.
+________________________________________
+Step 7: Create Service for MySQL
+Go to:
+Networking → Services → Create Service
+Fill values:
+Field	Value
+Name	db-pod
+Selector	app=db-pod
+Port	3306
+Target Port	3306
+What this does
+Creates internal access for MySQL.
+Flow:
+Application
+     ↓
+Service (db-pod)
+     ↓
+MySQL Pod
+Port:
+3306
+Default MySQL port.
+________________________________________
+Step 8: Add Persistent Storage (PVC)
+Now we add storage to database.
+Go to:
+Workloads → Deployments → db-pod
+Click:
+Add Storage
+Then:
+Create new claim
+Fill values:
+Field	Value
+PVC Name	db-pod-pvc
+Access Mode	RWO
+Size	1 GiB
+Volume Mode	Filesystem
+Mount Path	/var/lib/mysql
+________________________________________
+Why /var/lib/mysql?
+MySQL stores database files in:
+/var/lib/mysql
+So mounting storage here ensures:
+Database files persist
+________________________________________
+Result
+OpenShift creates:
+PVC → db-pod-pvc
+PV → pvc-xxxxx
+________________________________________
+Step 9: Identify the PV
+Click:
+db-pod-pvc
+Open:
+YAML tab
+Look for:
+.spec.volumeName
+Example:
+volumeName: pvc-8b08a...
+Even though name starts with pvc, it is actually a PersistentVolume.
+________________________________________
+Step 10: Verify Deployment Updated
+Go to:
+Workloads → Deployments → db-pod → YAML
+You will see new configuration.
+Volumes section
+volumes:
+- name: db-pod-pvc
+  persistentVolumeClaim:
+    claimName: db-pod-pvc
+________________________________________
+Volume Mount
+volumeMounts:
+- name: db-pod-pvc
+  mountPath: /var/lib/mysql
+Meaning:
+PVC storage → mounted into MySQL container
+________________________________________
+Step 11: Initialize Database Using ConfigMap
+Database needs initial data.
+File:
+init-db.sql
+Contents:
+CREATE TABLE Item
+INSERT rows
+________________________________________
+Step 12: Create ConfigMap
+Run:
+oc create configmap init-db-cm \
+--from-file ~/DO180/labs/storage-volumes/configmap/init-db.sql
+Command Explanation
+Part	Meaning
+create configmap	create configuration object
+init-db-cm	name
+--from-file	use file content
+This stores SQL script inside ConfigMap.
+________________________________________
+Step 13: Mount ConfigMap in Deployment
+Run:
+oc set volumes deployment/db-pod \
+--add \
+--name init-db-volume \
+--type configmap \
+--configmap-name init-db-cm \
+--mount-path /var/db/config
+Meaning:
+SQL script → mounted inside container
+Location:
+/var/db/config/init-db.sql
+________________________________________
+Step 14: Execute SQL Script
+Enter container shell:
+oc rsh deployment/db-pod
+Run SQL:
+mysql -uuser1 -predhat123 items < /var/db/config/init-db.sql
+This:
+•	creates table
+•	inserts data
+________________________________________
+Step 15: Verify Database Data
+Run:
+mysql -uuser1 -predhat123 items \
+-e 'select * from Item;'
+Output:
++----+-------------------+------+
+| id | description       | done |
++----+-------------------+------+
+| 1  | Pick up newspaper | 0x00 |
+| 2  | Buy groceries     | 0x01 |
++----+-------------------+------+
+Database initialized successfully.
+________________________________________
+Step 16: Test Persistence
+Delete deployment:
+oc delete deployment/db-pod
+Check PVC:
+oc get pvc
+Output:
+db-pod-pvc   Bound
+PVC still exists.
+Meaning:
+Storage still exists
+Data not deleted
+________________________________________
+Step 17: Recreate Deployment
+Create deployment again:
+oc create deployment db-pod \
+--port 3306 \
+--image registry.ocp4.example.com:8443/rhel8/mysql-80
+Add environment variables:
+oc set env deployment/db-pod \
+MYSQL_USER=user1 \
+MYSQL_PASSWORD=redhat123 \
+MYSQL_DATABASE=items
+________________________________________
+Step 18: Reattach PVC
+oc set volumes deployment/db-pod \
+--add \
+--type pvc \
+--mount-path /var/lib/mysql \
+--name db-pod-vol \
+--claim-name db-pod-pvc
+Now MySQL uses same storage.
+________________________________________
+Step 19: Verify Data Still Exists
+Run test pod:
+oc run query-db -it --rm \
+--image registry.ocp4.example.com:8443/redhattraining/do180-dbinit \
+--restart Never \
+-- /bin/bash -c "mysql -uuser1 -predhat123 \
+--protocol tcp -h db-pod -P3306 items \
+-e 'select * from Item;'"
+Result:
+Pick up newspaper
+Buy groceries
+This proves:
+Data persisted
+Even after deleting pod.
+________________________________________
+Step 20: Cleanup Resources
+Delete deployment:
+oc delete deployment/db-pod
+Delete PVC:
+oc delete pvc/db-pod-pvc
+________________________________________
+Step 21: Finish Lab
+Run:
+lab finish storage-volumes
+This cleans up environment.
+________________________________________
+Architecture of This Lab
+MySQL Pod
+     │
+     ▼
+PVC (db-pod-pvc)
+     │
+     ▼
+PV (pvc-xxxx)
+     │
+     ▼
+StorageClass (nfs-storage)
+     │
+     ▼
+NFS Storage Server
+________________________________________
+Key Concepts Learned
+Concept	Explanation
+PVC	storage request
+PV	actual storage
+StorageClass	storage type
+Mount path	location in container
+Persistent storage	survives pod deletion
+________________________________________
+Important Commands
+Create ConfigMap:
+oc create configmap
+Mount ConfigMap:
+oc set volumes
+Connect to container:
+oc rsh
+Create deployment:
+oc create deployment
+Delete PVC:
+oc delete pvc
+
