@@ -1,0 +1,327 @@
+Selecting a Storage Class for an Application
+Objective
+Choose the correct StorageClass so that an application gets the right type of storage.
+Storage differs in:
+•	Performance
+•	Cost
+•	Reliability
+•	Access type
+•	Backup policies
+Developers choose a StorageClass instead of dealing with physical storage directly.
+________________________________________
+1. What is a StorageClass?
+A StorageClass defines how storage should be provided in Kubernetes/OpenShift.
+It describes:
+•	Storage provider
+•	Performance type
+•	Provisioning method
+•	Reclaim behavior
+•	Volume expansion support
+Simple Architecture
+Application
+     ↓
+PersistentVolumeClaim (PVC)
+     ↓
+StorageClass
+     ↓
+Provisioner
+     ↓
+PersistentVolume (PV)
+     ↓
+Actual Storage (NFS, AWS EBS, etc)
+________________________________________
+2. Why StorageClasses Exist
+Clusters can have multiple storage systems.
+Examples:
+Storage	Use Case
+SSD	high performance
+HDD	cheap storage
+NFS	shared storage
+Cloud disk	persistent cloud storage
+Administrators create StorageClasses to represent these.
+Example:
+fast-ssd
+standard-hdd
+backup-storage
+dev-storage
+Developers simply choose the correct class.
+________________________________________
+3. Default StorageClass
+Clusters normally have a default StorageClass.
+If a PVC does not specify one, Kubernetes automatically uses the default.
+Example annotation:
+storageclass.kubernetes.io/is-default-class: "true"
+Important rule:
+Even if default exists, developers should explicitly specify StorageClass to avoid problems if the default changes.
+________________________________________
+4. Reclaim Policy
+Reclaim policy defines what happens when a PVC is deleted.
+Two main policies exist.
+________________________________________
+4.1 Delete Policy (Default)
+When PVC is deleted:
+PVC → Deleted
+PV → Deleted
+Actual Storage → Deleted
+Data → Lost
+Advantages
+•	Automatic cleanup
+•	Lower storage cost
+Example use:
+temporary application data
+test environments
+________________________________________
+4.2 Retain Policy
+When PVC is deleted:
+PVC → Deleted
+PV → Kept
+Storage → Kept
+Data → Kept
+Administrator must manually clean storage.
+Advantages:
+Data is preserved
+Use cases:
+databases
+critical data
+production storage
+________________________________________
+5. Manual Reclaim Steps (Retain Policy)
+If reclaim policy = Retain
+Administrator must manually reclaim storage.
+Step 1
+Delete the PV
+oc delete pv pv-name
+This removes PV from Kubernetes.
+________________________________________
+Step 2
+Storage still exists in external infrastructure:
+Examples:
+•	AWS EBS
+•	Azure Disk
+•	Google Persistent Disk
+•	OpenStack Cinder
+Admin can:
+Option 1 – Reuse the storage
+Option 2 – Delete storage manually
+________________________________________
+6. Kubernetes Storage Responsibility
+Important rule:
+Kubernetes does NOT protect applications from bad storage usage.
+Applications must handle:
+•	data consistency
+•	locking
+•	integrity
+Example problem:
+Two databases sharing the same disk.
+DB1 → writes data
+DB2 → overwrites data
+Kubernetes does not prevent this.
+________________________________________
+7. Access Modes
+PVCs specify how storage can be accessed.
+ReadWriteOnce (RWO)
+Only ONE node can mount the volume
+Common for:
+databases
+Example:
+iSCSI
+cloud disks
+________________________________________
+ReadWriteMany (RWX)
+Multiple nodes can read/write
+Example:
+NFS
+shared storage
+________________________________________
+Important note:
+Access mode does not guarantee safe sharing.
+Even with RWX:
+Applications can overwrite each other's data
+________________________________________
+8. StorageClass Use Cases
+Admins design storage classes based on many factors.
+________________________________________
+8.1 Volume Mode
+Two types:
+Filesystem
+Most common.
+Used when applications work with files.
+Example:
+web servers
+shared folders
+________________________________________
+Block Mode
+Provides raw block device.
+Benefits:
+Higher performance
+Used by:
+databases
+high-performance apps
+________________________________________
+9. Quality of Service (QoS)
+Storage classes can represent performance levels.
+Example:
+Storage	Performance
+SSD	fast
+HDD	slow
+NVMe	very fast
+Developers choose based on application needs.
+________________________________________
+10. Administrative Tier
+Admins may create tiers.
+Example:
+Tier	Features
+Production	backups enabled
+Development	cheaper storage
+Archive	slow but cheap
+________________________________________
+11. PVC Matching Process
+When PVC is created, Kubernetes searches for a matching PV.
+Matching conditions:
+1️⃣ Access mode must match
+RWO
+RWX
+2️⃣ Storage size must be enough
+PVC request = 10Gi
+PV must ≥ 10Gi
+3️⃣ StorageClass must match
+If no match exists:
+PVC status = Pending
+________________________________________
+12. Requesting a Specific StorageClass
+Developers specify it inside PVC.
+Example:
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-block-pvc
+spec:
+  accessModes:
+    - RWO
+  volumeMode: Block
+  storageClassName: storage-class-name
+  resources:
+    requests:
+      storage: 10Gi
+Important field:
+storageClassName
+Only PVs with this StorageClass can bind.
+________________________________________
+13. StorageClass YAML Example
+Example StorageClass:
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: io1-gold-storage
+provisioner: ebs.csi.aws.com
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+parameters:
+  type: io1
+  iopsPerGB: "10"
+Explanation:
+Field	Meaning
+apiVersion	API version
+kind	resource type
+name	storage class name
+provisioner	storage driver
+reclaimPolicy	delete or retain
+volumeBindingMode	when PV created
+allowVolumeExpansion	allow resizing
+parameters	storage options
+________________________________________
+14. Provisioner
+Provisioner identifies the storage driver.
+Examples:
+Provisioner	Storage
+kubernetes.io/aws-ebs	AWS EBS
+kubernetes.io/gce-pd	Google Disk
+topolvm.io	TopoLVM
+nfs-subdir-external-provisioner	NFS
+Provisioner dynamically creates PVs.
+________________________________________
+15. VolumeBindingMode
+Controls when PV is created.
+________________________________________
+Immediate (Default)
+PV created when PVC is created.
+Problem:
+Pod scheduling not considered
+This may create unusable volumes.
+________________________________________
+WaitForFirstConsumer
+PV created only when a pod uses the PVC.
+Benefits:
+Better scheduling
+Topology-aware storage
+Recommended for many environments.
+________________________________________
+16. Allow Volume Expansion
+If enabled:
+allowVolumeExpansion: true
+Developers can increase PVC size.
+Example:
+10Gi → 20Gi
+Important:
+Shrinking volumes is NOT supported
+________________________________________
+17. Creating StorageClass
+Cluster administrator creates it.
+Command:
+oc create -f storage-class.yaml
+StorageClasses are:
+cluster-wide
+not namespaced
+Available to all projects.
+________________________________________
+18. Viewing StorageClasses
+List all storage classes:
+oc get storageclass
+Example output:
+NAME           PROVISIONER
+nfs-storage    k8s-sigs.io/nfs-subdir-external-provisioner
+lvms-vg1       topolvm.io
+________________________________________
+19. Inspect StorageClass
+Command:
+oc describe storageclass lvms-vg1
+Example output:
+Provisioner: topolvm.io
+ReclaimPolicy: Delete
+VolumeBindingMode: WaitForFirstConsumer
+AllowVolumeExpansion: True
+Developers use this info to choose storage.
+________________________________________
+20. Attaching PVC to Deployment
+Example command:
+oc set volume deployment/myapp \
+--add \
+--name my-volume \
+--claim-name my-block-pvc \
+--mount-path /var/tmp
+This mounts PVC inside container.
+________________________________________
+Key Concepts Summary
+Concept	Meaning
+StorageClass	storage profile
+PVC	storage request
+PV	actual volume
+Provisioner	creates volumes
+ReclaimPolicy	what happens when PVC deleted
+VolumeBindingMode	when PV is created
+AllowVolumeExpansion	allow resizing
+________________________________________
+DO180 Exam Tips
+Remember these common exam points:
+Default reclaim policy
+Delete
+Most common access mode
+RWO
+View storage classes
+oc get storageclass
+Inspect storage class
+oc describe storageclass
+PVC field for selecting storage class
+storageClassName
+
