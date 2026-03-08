@@ -1,0 +1,283 @@
+Navigate the OpenShift Web Console
+Objective
+Learn how to:
+•	Access the OpenShift Web Console
+•	Navigate its menus and perspectives
+•	Identify applications and cluster services
+________________________________________
+1. What is the OpenShift Web Console
+The OpenShift Web Console is a graphical user interface (GUI) used to manage an OpenShift cluster.
+It allows administrators and developers to perform tasks such as:
+•	deploying applications
+•	monitoring pods
+•	managing storage
+•	configuring networking
+•	viewing logs
+•	installing operators
+Instead of using command-line commands, users can perform tasks visually through a browser.
+________________________________________
+Important Idea
+OpenShift Web Console uses:
+•	Kubernetes APIs
+•	OpenShift APIs
+to perform operations.
+So anything done in the web console can also be done using CLI.
+Example CLI equivalents:
+Check pods:
+oc get pods
+Check projects:
+oc get projects
+________________________________________
+2. Difference Between Kubernetes Dashboard and OpenShift Console
+Kubernetes has its own dashboard, but it is limited.
+Kubernetes Dashboard
+Problems:
+•	Not installed by default
+•	Uses token-based authentication
+•	Requires proxy setup
+•	Limited security features
+________________________________________
+OpenShift Web Console
+Advantages:
+•	installed by default
+•	secure authentication
+•	advanced UI
+•	integrated cluster tools
+•	extensible via operators
+So the OpenShift console is much more powerful.
+________________________________________
+3. Accessing the OpenShift Web Console
+To access the console you must:
+1.	Login to cluster using CLI
+2.	Get the console URL
+3.	Open URL in browser
+________________________________________
+Step 1: Login to OpenShift
+Command:
+oc login -u <username> -p <password> <API_URL>
+Example:
+oc login -u developer -p developer https://api.ocp4.example.com:6443
+Explanation:
+Parameter	Meaning
+-u	username
+-p	password
+API_URL	cluster API endpoint
+If successful:
+Login successful
+________________________________________
+Step 2: Get Console URL
+Command:
+oc whoami --show-console
+Example output:
+https://console-openshift-console.apps.ocp4.example.com
+This URL is the OpenShift Web Console address.
+________________________________________
+Step 3: Open Browser
+Open the URL in a web browser.
+You will see the OpenShift login page.
+After authentication you reach the OpenShift home page.
+________________________________________
+4. OpenShift Web Console Perspectives
+The console has different perspectives for different users.
+A perspective changes the menu layout.
+Main perspectives:
+1.	Administrator
+2.	Developer
+3.	Virtualization (optional)
+________________________________________
+Administrator Perspective
+Used by cluster administrators.
+Focus areas:
+•	cluster configuration
+•	infrastructure management
+•	node management
+•	networking
+•	operators
+•	security
+Typical tasks:
+•	install operators
+•	manage nodes
+•	monitor cluster
+•	manage storage
+________________________________________
+Developer Perspective
+Used by application developers.
+Focus areas:
+•	creating applications
+•	deploying containers
+•	viewing logs
+•	monitoring application performance
+Developers mainly interact with:
+•	builds
+•	deployments
+•	routes
+•	services
+________________________________________
+Virtualization Perspective
+Appears only if OpenShift Virtualization Operator is installed.
+Used for:
+•	creating virtual machines
+•	managing VM resources
+________________________________________
+5. Switching Perspectives
+The perspective switcher is located at the top of the sidebar.
+Example:
+Administrator ▼
+Developer
+Virtualization
+You can switch between them anytime.
+________________________________________
+6. Web Console Layout
+The main navigation method is the sidebar menu.
+Main sections include:
+Home
+Workloads
+Networking
+Storage
+Builds
+Operators
+User Management
+Administration
+Each section contains different cluster features.
+________________________________________
+7. Home Section
+The Home → Overview page provides a summary of the cluster.
+Information shown:
+•	cluster status
+•	resource usage
+•	health information
+•	quick links
+________________________________________
+Home → Projects
+Projects show all namespaces available to the user.
+Remember:
+OpenShift uses Projects instead of Namespaces.
+Example CLI command:
+oc get projects
+________________________________________
+8. OperatorHub
+The OperatorHub is a catalog of operators.
+Operators are applications that extend Kubernetes functionality.
+Examples:
+•	database operators
+•	monitoring operators
+•	service mesh operators
+________________________________________
+Accessing OperatorHub
+Menu:
+Operators → OperatorHub
+Here you can:
+•	search operators
+•	install operators
+•	extend cluster capabilities
+________________________________________
+9. Developer Catalog
+The Developer Catalog allows developers to deploy applications easily.
+It contains:
+•	templates
+•	application services
+•	event sources
+•	Source-to-Image builders
+Example items:
+•	Node.js applications
+•	databases
+•	messaging systems
+________________________________________
+Workflow Example
+Developer selects:
+Node.js template
+OpenShift automatically:
+Create build
+Create container image
+Deploy application
+Create route
+________________________________________
+10. Key OpenShift Concepts in Web Console
+When using the web console, you will frequently see these terms.
+________________________________________
+Pods
+Definition:
+A Pod is the smallest deployable unit in Kubernetes.
+A pod contains:
+•	one or more containers
+Example CLI command:
+oc get pods
+________________________________________
+Deployments
+A Deployment manages application pods.
+Responsibilities:
+•	create pods
+•	update pods
+•	scale pods
+Example:
+oc get deployments
+Scaling example:
+oc scale deployment nginx --replicas=3
+________________________________________
+Projects
+Projects are OpenShift namespaces with additional features.
+Used for:
+•	multitenancy
+•	resource isolation
+•	access control
+Command:
+oc new-project myproject
+List projects:
+oc get projects
+________________________________________
+Routes
+Routes expose applications outside the cluster.
+They provide an external URL.
+Example:
+https://myapp.apps.cluster.com
+Command:
+oc get routes
+Create route:
+oc expose service myapp
+________________________________________
+Operators
+Operators automate application management.
+Example:
+Database Operator can automatically:
+•	install database
+•	configure replication
+•	manage backups
+Check operators:
+oc get operators
+________________________________________
+Quick Revision Summary
+OpenShift Web Console:
+•	graphical interface for cluster management
+•	accessible via browser
+Access steps:
+1.	
+oc login
+2.	
+oc whoami --show-console
+3.	open URL in browser
+________________________________________
+Main perspectives:
+Administrator
+•	cluster management
+Developer
+•	application deployment
+Virtualization
+•	virtual machine management
+________________________________________
+Important console sections:
+Home → Overview
+•	cluster summary
+Home → Projects
+•	namespace management
+Operators → OperatorHub
+•	install operators
+Developer Catalog
+•	deploy applications
+________________________________________
+Key concepts:
+Pod → smallest application unit
+Deployment → manages pods
+Project → namespace equivalent
+Route → expose application externally
+Operator → automate application management
+
