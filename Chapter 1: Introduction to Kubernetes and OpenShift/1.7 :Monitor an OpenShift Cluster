@@ -1,0 +1,344 @@
+
+Monitor an OpenShift Cluster
+Objective
+Learn how to monitor the cluster using the OpenShift Web Console panels:
+•	Events
+•	Compute
+•	Observe
+These panels help administrators check:
+•	cluster health
+•	node status
+•	application performance
+•	alerts and logs
+________________________________________
+1. Nodes, Machines, and Machine Configuration
+What is a Node
+In Kubernetes, a Node is a machine where containers run.
+A node can be:
+•	physical server (bare metal)
+•	virtual machine
+•	cloud instance
+Nodes run:
+•	pods
+•	container runtime
+•	kubelet
+•	networking services
+When you deploy an application:
+Pod → scheduled → Node
+Example command:
+oc get nodes
+Output example:
+NAME        STATUS   ROLES
+master-1    Ready    master
+worker-1    Ready    worker
+________________________________________
+Machine vs Node in OpenShift
+In normal Kubernetes:
+Machine ≈ Node
+But in OpenShift, a Machine is a resource that represents the node.
+Example:
+Machine resource
+       ↓
+Creates
+       ↓
+Node
+Machine resources are useful for cloud infrastructure automation.
+Example command:
+oc get machines
+________________________________________
+2. MachineConfig and Machine Config Operator (MCO)
+MachineConfig
+A MachineConfig defines how cluster nodes should be configured.
+It controls:
+•	operating system configuration
+•	system files
+•	services
+•	updates
+•	kubelet version
+•	CRI-O version
+Example command:
+oc get machineconfig
+________________________________________
+Machine Config Operator (MCO)
+The Machine Config Operator ensures that nodes follow the MachineConfig.
+Responsibilities:
+•	maintain node configuration
+•	apply OS updates
+•	update system services
+•	enforce cluster configuration
+Example flow:
+Admin changes MachineConfig
+        ↓
+MCO detects change
+        ↓
+Updates nodes
+        ↓
+Nodes restart if required
+________________________________________
+Node Update Order
+OpenShift updates nodes zone-wise using label:
+topology.kubernetes.io/zone
+This prevents the whole cluster from restarting simultaneously.
+________________________________________
+3. Viewing Nodes in the Web Console
+Menu:
+Compute → Nodes
+This page shows:
+•	node name
+•	status
+•	CPU usage
+•	memory usage
+•	role (master/worker)
+________________________________________
+Node Details Page
+Click any node to view:
+•	node logs
+•	metrics
+•	events
+•	YAML configuration
+•	terminal access
+________________________________________
+4. Viewing Node Logs
+Node logs help troubleshoot problems.
+Example issues:
+•	node not ready
+•	kubelet failure
+•	container runtime failure
+From the console:
+Compute → Nodes → Node Name → Logs
+CLI equivalent:
+oc adm node-logs <node-name>
+________________________________________
+5. Debugging Nodes with Terminal
+The web console provides a terminal to access the node.
+This terminal connects through a debug pod.
+A debug pod is a temporary container used to access node resources.
+Example command (CLI):
+oc debug node/<node-name>
+Example:
+oc debug node/worker-1
+This creates a debug container on the node.
+Inside the debug environment you can run system commands.
+________________________________________
+Important Rule
+Directly modifying nodes is not recommended.
+Instead:
+•	update MachineConfig
+•	let MCO apply the changes
+________________________________________
+6. Accessing Pod Logs
+Administrators often check pod logs for troubleshooting.
+Menu:
+Workloads → Pods
+This page lists:
+•	all pods
+•	their status
+•	node location
+•	restart count
+________________________________________
+Viewing Pod Details
+Click a pod name.
+You can view:
+•	logs
+•	metrics
+•	environment variables
+•	terminal
+•	YAML configuration
+•	events
+________________________________________
+Pod Logs
+Pod logs show:
+•	application output
+•	errors
+•	warnings
+CLI command:
+oc logs <pod-name>
+Example:
+oc logs nginx-pod
+________________________________________
+Pod Terminal
+The Terminal tab allows you to open a shell inside the container.
+Example CLI equivalent:
+oc exec -it <pod-name> -- /bin/bash
+Example:
+oc exec -it nginx-pod -- /bin/bash
+This allows you to:
+•	inspect files
+•	test application
+•	debug runtime problems
+________________________________________
+7. Cluster Metrics and Monitoring
+OpenShift uses Prometheus for monitoring.
+Prometheus collects metrics from services.
+Metrics endpoint:
+/metrics
+Applications expose performance data through this endpoint.
+Example metrics:
+•	CPU usage
+•	memory usage
+•	request rate
+•	error rate
+________________________________________
+8. ServiceMonitor and PodMonitor
+To monitor services and pods, OpenShift uses monitoring resources.
+ServiceMonitor
+Defines how a service is monitored.
+Example tasks:
+•	collect metrics
+•	define monitoring rules
+________________________________________
+PodMonitor
+Monitors individual pods.
+Used when metrics come directly from pods.
+________________________________________
+9. Alerts
+Alerts notify administrators when something goes wrong.
+Example alerts:
+•	pod crash
+•	high CPU usage
+•	node failure
+•	service unavailable
+Alert workflow:
+Metric collected
+       ↓
+Monitor checks threshold
+       ↓
+Condition fails
+       ↓
+Alert triggered
+Example:
+Web server port 80 not responding
+Alert severity types:
+•	warning
+•	critical
+________________________________________
+10. Metrics Dashboard (Observe Panel)
+Menu:
+Observe → Metrics
+This page uses Grafana-like visualization.
+Administrators can:
+•	query metrics
+•	create graphs
+•	build dashboards
+Example metrics queries:
+CPU usage
+Memory usage
+Pod network traffic
+CLI example:
+oc adm top nodes
+or
+oc adm top pods
+________________________________________
+11. Alerting Dashboard
+Menu:
+Observe → Alerting
+This page shows:
+•	active alerts
+•	alert severity
+•	alert description
+•	affected components
+Administrators use this to identify system failures quickly.
+________________________________________
+12. Kubernetes Events
+Events show important cluster activities.
+They are a high-level summary of logs.
+Examples:
+•	pod created
+•	pod failed
+•	node restarted
+•	deployment scaled
+Menu:
+Home → Events
+CLI equivalent:
+oc get events
+Events help administrators quickly understand what changed in the cluster.
+________________________________________
+Logs vs Events
+Feature	Logs	Events
+Detail level	Very detailed	High-level
+Purpose	debugging	monitoring
+Scope	application/system	cluster activity
+________________________________________
+13. API Explorer
+OpenShift provides an API Explorer.
+Menu:
+Home → API Explorer
+This page shows:
+•	Kubernetes resource types
+•	API documentation
+•	resource schemas
+•	YAML examples
+Example resources you can explore:
+•	Pods
+•	Deployments
+•	Services
+•	ConfigMaps
+•	Routes
+API Explorer is useful for:
+•	learning Kubernetes resources
+•	writing YAML manifests
+•	understanding API structure
+________________________________________
+Important Monitoring Areas in Web Console
+Compute Panel
+Used for infrastructure monitoring.
+Menu:
+Compute → Nodes
+Shows:
+•	node status
+•	node resources
+•	node logs
+________________________________________
+Observe Panel
+Used for metrics and alerts.
+Menu:
+Observe → Metrics
+Observe → Alerting
+Shows:
+•	performance metrics
+•	alert status
+________________________________________
+Events Panel
+Used for cluster activity tracking.
+Menu:
+Home → Events
+Shows:
+•	cluster changes
+•	errors
+•	warnings
+________________________________________
+Important Commands for Monitoring
+Check nodes:
+oc get nodes
+Check pods:
+oc get pods
+Check events:
+oc get events
+Check metrics:
+oc adm top nodes
+Check pod logs:
+oc logs <pod-name>
+Debug node:
+oc debug node/<node-name>
+________________________________________
+Quick Revision Summary
+Node
+Machine where pods run.
+Machine
+OpenShift resource that represents a node.
+MachineConfig
+Defines node configuration.
+Machine Config Operator (MCO)
+Maintains node configuration and updates OS.
+Compute → Nodes
+View node status and logs.
+Workloads → Pods
+View pod logs and details.
+Observe → Metrics
+View performance metrics.
+Observe → Alerting
+View cluster alerts.
+Home → Events
+View cluster activity.
+API Explorer
+View Kubernetes resource APIs.
